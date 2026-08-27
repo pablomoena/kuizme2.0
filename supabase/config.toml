@@ -1,0 +1,35 @@
+# Proyecto: Kuizme (cuenta propia, no Lovable Cloud)
+project_id = "bmsefapphatpqtufbife"
+
+[db]
+major_version = 17
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/**", "https://kuizme.com/**", "https://*.kuizme.com/**"]
+
+# Endurecimiento que en la v1 no era ni legible: vivía en la configuración
+# administrada de Lovable y no se podía auditar ni certificar a un cliente.
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = false            # el alta es por invitación, no registro abierto
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = true
+max_frequency = "60s"
+otp_expiry = 3600
+
+[auth.email.smtp]
+# El correo transaccional sale por Resend, no por el SMTP de Supabase.
+enabled = false
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true

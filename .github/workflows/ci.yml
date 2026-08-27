@@ -37,18 +37,39 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key-para-build
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-anon-key-para-build
           NEXT_PUBLIC_ROOT_DOMAIN: kuizme.com
 
-  migrations:
-    name: Migraciones
+  schema:
+    name: Esquema y comportamiento
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: kuizme
+          POSTGRES_PASSWORD: kuizme
+          POSTGRES_DB: kuizme_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PGPASSWORD: kuizme
+      PSQL: psql -h localhost -U kuizme -d kuizme_test -v ON_ERROR_STOP=1
     steps:
       - uses: actions/checkout@v5
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
+
       # Aplica el esquema completo desde cero en una base limpia. Si una
       # migración no corre, CI falla acá y no en producción. La v1 no tenía esto.
-      - run: supabase db start
-      - run: supabase db reset --debug
+      - name: Aplicar migraciones desde cero
+        run: |
+          $PSQL -f tests/db/stubs.sql
+          for f in supabase/migrations/*.sql; do
+            echo "── $f"
+            $PSQL -f "$f"
+          done
+
+      # Y comprueba que las decisiones de diseño FUNCIONAN, no solo que compilan.
+      - name: Verificar invariantes contra la base
+        run: $PSQL -f tests/db/schema-behavior.sql
