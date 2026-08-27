@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Tokens semánticos. Se portan de la v1, donde estaban bien pensados (HSL con
+   notas de contraste WCAG). La diferencia: acá el tema del tenant SÍ llega a los
+   componentes. En v1 se escribían --org-primary y --org-accent y ningún
+   componente las consumía: el white-label era código muerto. */
+@theme {
+  --color-ground: hsl(220 14% 96%);
+  --color-surface: hsl(0 0% 100%);
+  --color-surface-muted: hsl(220 14% 98%);
+  --color-ink: hsl(224 24% 10%);
+  --color-ink-muted: hsl(220 14% 36%);
+  --color-line: hsl(220 13% 90%);
+
+  /* Sobrescribibles por organización en tiempo de render. */
+  --color-brand: var(--tenant-brand, hsl(220 78% 30%));
+  --color-brand-hover: var(--tenant-brand-hover, hsl(220 78% 24%));
+  --color-brand-fg: var(--tenant-brand-fg, hsl(0 0% 100%));
+
+  --color-success: hsl(160 84% 32%);
+  --color-warning: hsl(35 92% 38%);
+  --color-danger: hsl(0 72% 42%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ground: hsl(220 16% 8%);
+    --color-surface: hsl(220 14% 11%);
+    --color-surface-muted: hsl(220 14% 14%);
+    --color-ink: hsl(220 14% 94%);
+    --color-ink-muted: hsl(220 10% 68%);
+    --color-line: hsl(220 12% 20%);
+  }
+}
+
+html { color-scheme: light dark; }
+
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+}
+
+/* Foco visible en todo. En v1 el botón principal del login era el único control
+   sin anillo de foco: quien navegaba con teclado lo perdía justo ahí. */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
