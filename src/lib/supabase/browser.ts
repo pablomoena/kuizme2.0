@@ -1,5 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { env } from '@/lib/env';
+import type { Database } from '@/lib/db/types';
 
 /**
  * Cliente de navegador. Solo para interactividad real (rendir examen, editor de
@@ -7,5 +8,5 @@ import { env } from '@/lib/env';
  */
 export function createClient() {
   const { NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY } = env();
-  return createBrowserClient(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+  return createBrowserClient<Database>(NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 }

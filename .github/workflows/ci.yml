@@ -59,6 +59,11 @@ jobs:
       PSQL: psql -h localhost -U kuizme -d kuizme_test -v ON_ERROR_STOP=1
     steps:
       - uses: actions/checkout@v5
+      # Solo para el generador de tipos, que usa módulos nativos de Node y psql.
+      # No hace falta `npm ci`.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
 
       # Aplica el esquema completo desde cero en una base limpia. Si una
       # migración no corre, CI falla acá y no en producción. La v1 no tenía esto.
@@ -85,7 +90,46 @@ jobs:
       - name: Acceso a contenido
         run: $PSQL -f tests/db/content-access.sql
 
+      # Los tipos de TypeScript se generan del esquema, no se escriben a mano.
+      # Si alguien cambia una migración y no los regenera, falla acá y no con un
+      # error en tiempo de ejecución meses después.
+      - name: Tipos al día con el esquema
+        run: npm run db:types:check
+        env:
+          DATABASE_URL: postgresql://kuizme:kuizme@localhost:5432/kuizme_test
+
       # Va al final: traspasa la propiedad de todas las tablas y funciones a un
       # rol sin bypassrls, así que deja la base inservible para otras pruebas.
       - name: Independencia de los privilegios del dueño
         run: $PSQL -f tests/db/owner-privileges.sql
+
+  e2e:
+    name: Extremo a extremo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      # El e2e corre contra la build de producción, no contra `next dev`: es el
+      # modo en que se sirve de verdad, y el dev server esconde diferencias de
+      # render y de caché.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-anon-key-para-e2e
+          NEXT_PUBLIC_ROOT_DOMAIN: localhost
+
+      # Playwright arranca el servidor (ver webServer en playwright.config.ts).
+      - run: npx playwright test --project=escritorio
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

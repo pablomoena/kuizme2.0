@@ -65,6 +65,26 @@ concreto y documentado de la v1:
 | D6 | Una columna canónica por decisión | `is_public` vs `visibility` en 22 políticas |
 | D7 | La lectura de contenido se gana, no se hereda | Membresía daba lectura de todo el tenant |
 
+## La puerta
+
+`src/lib/auth/access.ts` concentra la decisión de acceso en una función pura, y
+`guard.ts` es la plomería: resolver el tenant del host, buscar organización y
+membresía, delegar. Lo hace con el token del usuario, así que RLS sigue
+aplicando — si el guard tuviera un error, la base seguiría negando.
+
+Todo lo que vive bajo `src/app/(portal)/` exige sesión y membresía: el layout del
+grupo llama a `requirePortal()` antes de renderizar, así que una página nueva no
+puede olvidarse de comprobar el acceso. `requireStaff()` añade el rol.
+
+Dos cosas que no son estéticas:
+
+- **"No existe la organización" y "no eres miembro" dan la misma respuesta.** Con
+  RLS, una organización de la que no eres miembro llega como `null`, así que son
+  indistinguibles por construcción. Distinguirlas convertiría los subdominios en
+  un directorio de instituciones recorrible.
+- **La sesión se comprueba antes que la organización.** Si fuera al revés, un
+  visitante sin cuenta podría separar subdominios reales de inventados.
+
 `tests/unit/schema-invariants.test.ts` verifica estas decisiones en CI para que
 nadie las deshaga sin darse cuenta.
 
@@ -99,14 +119,28 @@ Por eso `memberships` y `platform_admins` tienen RLS activo pero **sin
 que la trampa 2: si el entorno de prueba es más permisivo que el real, la prueba
 pasa y la producción está distinta.
 
+**4. Los tipos de las consultas se caen a `never` sin decir nada.** postgrest-js
+exige que cada tabla del tipo `Database` traiga `Relationships`, además de
+`Views` y `Functions` en el esquema. Si falta cualquiera de las tres, la tabla no
+satisface `GenericTable`, **toda** consulta resuelve a `never`, y no hay ni un
+error de compilación: el código sigue tipando, los tests siguen pasando y
+`select('role')` devuelve un valor sin forma.
+
+Se midió quitando cada clave y contando errores: `Relationships` 5, `Views` 4,
+`Functions` 4, `CompositeTypes` 0 (esta no la exige). Por eso los tipos **se
+generan** (`npm run db:types`) y hay dos guardas: `npm run db:types:check` en CI
+para la deriva contra el esquema, y `tests/types/db-inference.ts`, que afirma en
+tiempo de compilación que las consultas resuelven a una forma concreta.
+
 ## Comandos
 
 ```bash
 npm run dev         # desarrollo
 npm run verify      # tipos + lint + tests (correr antes de cada commit)
 npm run build
-npm run test:e2e
 npm run db:reset    # aplica migraciones en la base local
+npm run db:types    # regenera src/lib/db/types.ts desde el esquema
+npm run test:e2e    # guard del portal y borde (Playwright levanta el servidor)
 ```
 
 Para probar un tenant en desarrollo: `http://ibmiel.localhost:3000`
@@ -121,3 +155,13 @@ Para probar un tenant en desarrollo: `http://ibmiel.localhost:3000`
   que "no hay datos".
 - Cero colores hardcodeados: solo tokens, para que el tema del tenant llegue.
 - Nada de componentes de más de ~300 líneas.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
