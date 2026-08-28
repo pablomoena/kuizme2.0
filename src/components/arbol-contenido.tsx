@@ -3,6 +3,7 @@
 import { Ordenador } from './ordenador';
 import { FilaEditable } from './fila-editable';
 import { AgregarInline } from './agregar-inline';
+import { MarcaMuestra } from './marca-muestra';
 import {
   createLesson,
   createModule,
@@ -69,13 +70,20 @@ export function ArbolContenido({
                     onReorder={(ids) => reorder('lessons', modulo.id, ids, courseSlug)}
                   >
                     {(leccion) => (
-                      <FilaEditable
-                        title={leccion.title}
-                        subtitulo={leccion.is_required ? undefined : 'opcional'}
-                        advertenciaBorrado={`Se borrará la lección "${leccion.title}".`}
-                        onRename={(nuevo) => renameItem('lessons', leccion.id, nuevo, courseSlug)}
-                        onDelete={() => deleteItem('lessons', leccion.id, courseSlug)}
-                      />
+                      <div className="flex flex-col gap-1">
+                        <FilaEditable
+                          title={leccion.title}
+                          subtitulo={leccion.is_required ? undefined : 'opcional'}
+                          advertenciaBorrado={`Se borrará la lección "${leccion.title}".`}
+                          onRename={(nuevo) => renameItem('lessons', leccion.id, nuevo, courseSlug)}
+                          onDelete={() => deleteItem('lessons', leccion.id, courseSlug)}
+                        />
+                        <MarcaMuestra
+                          lessonId={leccion.id}
+                          isPreview={leccion.is_preview}
+                          courseSlug={courseSlug}
+                        />
+                      </div>
                     )}
                   </Ordenador>
                 ) : null}

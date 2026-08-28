@@ -20,7 +20,7 @@ reporta el resultado, no la expectativa.
 Tres capas. La v1 tenía solo la tercera, y por eso un error de política no era un
 bug sino una brecha de datos.
 
-1. **Borde** (`src/middleware.ts`) — resuelve el tenant desde el hostname y
+1. **Borde** (`src/proxy.ts`) — resuelve el tenant desde el hostname y
    refresca la sesión. Es el único lugar que escribe cookies.
 2. **Servidor** — toda escritura y toda lectura sensible ocurre en Server
    Components o Server Actions, con el token del usuario.
@@ -41,6 +41,18 @@ bug sino una brecha de datos.
 - **Los alumnos no escriben en `exam_attempts`.** Las transiciones de estado
   pasan por el servidor.
 - **Todo cambio de nota deja registro en `grade_changes`,** con motivo.
+- **El temario se puede mostrar; el contenido no.** `modules` y `lessons`
+  (título, tipo, orden, duración) se leen a nivel catálogo con
+  `can_view_course()`. El cuerpo vive en `lesson_contents` y exige
+  `can_study_course()`, salvo que la lección esté marcada `is_preview`. RLS
+  filtra filas y no columnas, así que separarlos es la única forma de publicar el
+  título y esconder el contenido — es el mismo remedio que D3 aplicó a la clave
+  de respuestas. Si el cuerpo vuelve a `lessons`, publicar el temario publica el
+  contenido.
+- **La excepción de muestra se ata a la fila.** La política comprueba
+  `l.id = lesson_id and l.is_preview`. Sin ligar el id, una sola lección de
+  muestra en toda la base abriría todos los contenidos; hay un invariante
+  unitario que lo vigila.
 - **La membresía no da lectura del contenido.** Pertenecer a la organización no
   es lo mismo que poder leerla. Módulos y lecciones exigen `can_study_course()`;
   el material de evaluación (bancos, preguntas, alternativas, armado del examen)
@@ -64,6 +76,7 @@ concreto y documentado de la v1:
 | D5 | `grade_changes` con motivo obligatorio | Notas editadas a mano sin trazabilidad |
 | D6 | Una columna canónica por decisión | `is_public` vs `visibility` en 22 políticas |
 | D7 | La lectura de contenido se gana, no se hereda | Membresía daba lectura de todo el tenant |
+| D8 | La ficha de la lección y su contenido, en tablas distintas | Sin temario visible no hay página de venta |
 
 ## La puerta
 

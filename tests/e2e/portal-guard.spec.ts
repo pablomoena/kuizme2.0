@@ -32,7 +32,12 @@ test.describe('sin sesión', () => {
   test('las rutas del editor tampoco se ven sin sesión', async ({ request }) => {
     // Se prueban todas las rutas del grupo (portal), no solo /panel: el riesgo
     // real es añadir una página nueva y que quede fuera del guard.
-    for (const ruta of ['/panel/cursos', '/panel/cursos/cualquier-curso']) {
+    for (const ruta of [
+      '/panel/cursos',
+      '/panel/cursos/cualquier-curso',
+      '/cursos',
+      '/cursos/cualquier-curso',
+    ]) {
       const res = await request.get(`${ORIGIN}${ruta}`, asHost('ibmiel.localhost:3000'));
       expect(res.status(), ruta).toBe(307);
       expect(res.headers()['location'], ruta).toBe('/login');

@@ -1,12 +1,13 @@
 -- ============================================================================
--- D7 · Acceso a contenido dentro de una misma organización
+-- D7 + D8 · Qué alcanza cada quién DENTRO de una organización
 -- ============================================================================
 -- La suite de aislamiento prueba que el tenant A no alcanza al tenant B. Esta
--- prueba lo que falta: que DENTRO de una organización, un alumno solo alcanza
--- lo que le corresponde. Ese era el agujero: membresía daba lectura de todo.
+-- prueba lo que falta: que dentro de una organización, un alumno solo alcance lo
+-- que le corresponde, y que el temario y la lección de muestra sí se vean antes
+-- de matricularse — sin que se filtre el resto del contenido.
 --
--- Sesiones reales (`set local role authenticated` + claim sub), igual que la
--- suite de aislamiento. No se prueba la intención de las políticas, su efecto.
+-- Sesiones reales (`set local role authenticated` + claim sub). No se prueba la
+-- intención de las políticas, su efecto.
 -- ============================================================================
 
 \set ON_ERROR_STOP on
@@ -28,7 +29,7 @@ insert into memberships (user_id, organization_id, role) values
   ('dd000000-0000-0000-0000-000000000002', '0d000000-0000-0000-0000-000000000001', 'student'),
   ('dd000000-0000-0000-0000-000000000003', '0d000000-0000-0000-0000-000000000001', 'student');
 
--- Cuatro cursos que cubren las cuatro combinaciones que importan.
+-- Cuatro cursos que cubren las combinaciones que importan.
 insert into courses (id, organization_id, slug, title, status, visibility) values
   ('d1000000-0000-0000-0000-000000000001', '0d000000-0000-0000-0000-000000000001',
    'curso-matriculado', 'Publicado, y el alumno está matriculado', 'published', 'private'),
@@ -45,11 +46,22 @@ insert into modules (id, course_id, title) values
   ('d2000000-0000-0000-0000-000000000003', 'd1000000-0000-0000-0000-000000000003', 'Módulo del catálogo'),
   ('d2000000-0000-0000-0000-000000000004', 'd1000000-0000-0000-0000-000000000004', 'Módulo ajeno');
 
-insert into lessons (id, module_id, title, body) values
-  ('d3000000-0000-0000-0000-000000000001', 'd2000000-0000-0000-0000-000000000001', 'Lección matriculada', 'CONTENIDO PAGADO'),
-  ('d3000000-0000-0000-0000-000000000002', 'd2000000-0000-0000-0000-000000000002', 'Lección borrador',    'BORRADOR'),
-  ('d3000000-0000-0000-0000-000000000003', 'd2000000-0000-0000-0000-000000000003', 'Lección catálogo',    'CONTENIDO DE CATÁLOGO'),
-  ('d3000000-0000-0000-0000-000000000004', 'd2000000-0000-0000-0000-000000000004', 'Lección ajena',       'CONTENIDO AJENO');
+-- En el curso de catálogo hay DOS lecciones: una de muestra y otra que no. Es la
+-- distinción que hace útil la prueba: sin ella, "se ve el contenido" y "se ve la
+-- muestra" serían indistinguibles.
+insert into lessons (id, module_id, title, is_preview) values
+  ('d3000000-0000-0000-0000-000000000001', 'd2000000-0000-0000-0000-000000000001', 'Lección matriculada', false),
+  ('d3000000-0000-0000-0000-000000000002', 'd2000000-0000-0000-0000-000000000002', 'Lección borrador',    false),
+  ('d3000000-0000-0000-0000-000000000003', 'd2000000-0000-0000-0000-000000000003', 'Muestra gratis',      true),
+  ('d3000000-0000-0000-0000-000000000005', 'd2000000-0000-0000-0000-000000000003', 'Lección de pago',     false),
+  ('d3000000-0000-0000-0000-000000000004', 'd2000000-0000-0000-0000-000000000004', 'Lección ajena',       false);
+
+insert into lesson_contents (lesson_id, body) values
+  ('d3000000-0000-0000-0000-000000000001', 'CONTENIDO PAGADO'),
+  ('d3000000-0000-0000-0000-000000000002', 'BORRADOR'),
+  ('d3000000-0000-0000-0000-000000000003', 'CONTENIDO DE MUESTRA'),
+  ('d3000000-0000-0000-0000-000000000005', 'CONTENIDO DE PAGO DEL CATÁLOGO'),
+  ('d3000000-0000-0000-0000-000000000004', 'CONTENIDO AJENO');
 
 insert into enrollments (course_id, student_id, status) values
   ('d1000000-0000-0000-0000-000000000001', 'dd000000-0000-0000-0000-000000000002', 'active');
@@ -70,6 +82,9 @@ insert into exam_questions (exam_id, question_id, order_index) values
 commit;
 
 -- ── Utilidades ─────────────────────────────────────────────────────────────
+-- Viven en el esquema `test` y no en public: el generador de tipos introspecta
+-- las funciones de public que authenticated puede ejecutar, y unos helpers de
+-- prueba ahí terminaban dentro de src/lib/db/types.ts.
 create or replace function test.d_as(_user uuid) returns void
 language plpgsql as $$
 begin
@@ -104,38 +119,76 @@ select test.d_as('dd000000-0000-0000-0000-000000000002');
 do $$
 begin
   -- Ve el curso donde está matriculado y el del catálogo. No el borrador ni el ajeno.
-  perform test.d_expect('cursos visibles',              test.d_count('courses'), 2);
+  perform test.d_expect('cursos visibles',        test.d_count('courses'), 2);
   perform test.d_expect('cursos en borrador',
     (select count(*) from courses where status = 'draft'), 0);
-  -- Contenido solo del curso matriculado. El del catálogo no se estudia sin matrícula.
-  perform test.d_expect('módulos visibles',             test.d_count('modules'), 1);
-  perform test.d_expect('lecciones visibles',           test.d_count('lessons'), 1);
-  perform test.d_expect('cuerpos de lección alcanzables',
-    (select count(*) from lessons where body is not null), 1);
-  perform test.d_expect('la lección visible es la suya',
-    (select count(*) from lessons where id = 'd3000000-0000-0000-0000-000000000001'), 1);
+
+  -- D8: el temario de ambos cursos visibles, no solo el matriculado.
+  perform test.d_expect('módulos del temario',    test.d_count('modules'), 2);
+  perform test.d_expect('lecciones del temario',  test.d_count('lessons'), 3);
+
+  -- Pero el contenido solo del curso matriculado, más la muestra del catálogo.
+  perform test.d_expect('contenidos alcanzables', test.d_count('lesson_contents'), 2);
+  perform test.d_expect('el contenido pagado del catálogo NO',
+    (select count(*) from lesson_contents
+      where lesson_id = 'd3000000-0000-0000-0000-000000000005'), 0);
+  perform test.d_expect('su propio contenido SÍ',
+    (select count(*) from lesson_contents
+      where lesson_id = 'd3000000-0000-0000-0000-000000000001'), 1);
+
   -- Material de evaluación: cero por SQL.
-  perform test.d_expect('bancos de preguntas',          test.d_count('question_banks'), 0);
-  perform test.d_expect('enunciados de pregunta',       test.d_count('questions'), 0);
-  perform test.d_expect('alternativas',                 test.d_count('question_options'), 0);
-  perform test.d_expect('armado de exámenes',           test.d_count('exam_questions'), 0);
+  perform test.d_expect('bancos de preguntas',    test.d_count('question_banks'), 0);
+  perform test.d_expect('enunciados de pregunta', test.d_count('questions'), 0);
+  perform test.d_expect('alternativas',           test.d_count('question_options'), 0);
+  perform test.d_expect('armado de exámenes',     test.d_count('exam_questions'), 0);
+
   -- El examen que le toca dar sí, con sus reglas.
-  perform test.d_expect('exámenes visibles',            test.d_count('exams'), 1);
+  perform test.d_expect('exámenes visibles',      test.d_count('exams'), 1);
 end $$;
 rollback;
 
 \echo ''
-\echo '══ Alumno SIN matrícula, misma organización ════════════════════════════'
+\echo '══ Alumno SIN matrícula: temario y muestra, nada más ═══════════════════'
 begin;
 set local role authenticated;
 select test.d_as('dd000000-0000-0000-0000-000000000003');
 do $$
 begin
   perform test.d_expect('cursos visibles (solo catálogo)', test.d_count('courses'), 1);
-  perform test.d_expect('módulos visibles',                test.d_count('modules'), 0);
-  perform test.d_expect('lecciones visibles',              test.d_count('lessons'), 0);
+
+  -- D8 · Puede decidir: ve el temario completo del curso del catálogo.
+  perform test.d_expect('módulos del temario',             test.d_count('modules'), 1);
+  perform test.d_expect('lecciones del temario',           test.d_count('lessons'), 2);
+
+  -- Y una sola lección abierta: la marcada como muestra.
+  perform test.d_expect('contenidos alcanzables',          test.d_count('lesson_contents'), 1);
+  perform test.d_expect('el contenido abierto es la muestra',
+    (select count(*) from lesson_contents
+      where lesson_id = 'd3000000-0000-0000-0000-000000000003'), 1);
+  perform test.d_expect('la lección de pago sigue cerrada',
+    (select count(*) from lesson_contents
+      where lesson_id = 'd3000000-0000-0000-0000-000000000005'), 0);
+
   perform test.d_expect('exámenes visibles',               test.d_count('exams'), 0);
   perform test.d_expect('bancos de preguntas',             test.d_count('question_banks'), 0);
+end $$;
+rollback;
+
+\echo ''
+\echo '══ La muestra no abre el curso: marcarla no filtra el resto ════════════'
+begin;
+set local role authenticated;
+select test.d_as('dd000000-0000-0000-0000-000000000003');
+do $$
+begin
+  -- Aunque exista una lección de muestra en el catálogo, el curso privado sin
+  -- matrícula sigue invisible por completo.
+  perform test.d_expect('curso privado ajeno invisible',
+    (select count(*) from courses where id = 'd1000000-0000-0000-0000-000000000004'), 0);
+  perform test.d_expect('su temario invisible',
+    (select count(*) from modules where course_id = 'd1000000-0000-0000-0000-000000000004'), 0);
+  perform test.d_expect('su contenido invisible',
+    (select count(*) from lesson_contents where course_id = 'd1000000-0000-0000-0000-000000000004'), 0);
 end $$;
 rollback;
 
@@ -148,7 +201,8 @@ do $$
 begin
   perform test.d_expect('cursos visibles',        test.d_count('courses'), 4);
   perform test.d_expect('módulos visibles',       test.d_count('modules'), 4);
-  perform test.d_expect('lecciones visibles',     test.d_count('lessons'), 4);
+  perform test.d_expect('lecciones visibles',     test.d_count('lessons'), 5);
+  perform test.d_expect('contenidos visibles',    test.d_count('lesson_contents'), 5);
   perform test.d_expect('bancos de preguntas',    test.d_count('question_banks'), 1);
   perform test.d_expect('enunciados de pregunta', test.d_count('questions'), 1);
   perform test.d_expect('armado de exámenes',     test.d_count('exam_questions'), 1);
@@ -161,20 +215,26 @@ begin;
 do $$
 declare c uuid;
 begin
-  -- Se deriva en el INSERT sin pasarlo.
   insert into lessons (id, module_id, title)
     values ('d3000000-0000-0000-0000-0000000000aa', 'd2000000-0000-0000-0000-000000000001', 'Derivada');
   select course_id into c from lessons where id = 'd3000000-0000-0000-0000-0000000000aa';
   perform test.d_expect('course_id derivado del módulo',
     (select count(*) where c = 'd1000000-0000-0000-0000-000000000001'), 1);
 
-  -- Y se corrige al mover la lección a un módulo de otro curso. Si no, la fila
-  -- quedaría visible para los alumnos del curso equivocado.
   update lessons set module_id = 'd2000000-0000-0000-0000-000000000003'
     where id = 'd3000000-0000-0000-0000-0000000000aa';
   select course_id into c from lessons where id = 'd3000000-0000-0000-0000-0000000000aa';
   perform test.d_expect('course_id sincronizado al mover',
     (select count(*) where c = 'd1000000-0000-0000-0000-000000000003'), 1);
+
+  -- Y el contenido hereda las claves de su lección, sin que nadie las pase.
+  insert into lesson_contents (lesson_id, body)
+    values ('d3000000-0000-0000-0000-0000000000aa', 'texto');
+  perform test.d_expect('claves del contenido derivadas de la lección',
+    (select count(*) from lesson_contents
+      where lesson_id = 'd3000000-0000-0000-0000-0000000000aa'
+        and course_id = 'd1000000-0000-0000-0000-000000000003'
+        and organization_id = '0d000000-0000-0000-0000-000000000001'), 1);
 end $$;
 rollback;
 

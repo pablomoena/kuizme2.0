@@ -34,7 +34,7 @@ npm run dev
 | `kuizme.com` | Marketing y precios |
 | `app.kuizme.com` | Plano de control de plataforma |
 | `{slug}.kuizme.com` | Portal de cada institución |
-| dominio propio | Fase posterior; el middleware ya resuelve por host |
+| dominio propio | Fase posterior; el borde ya resuelve por host |
 
 ## Migraciones
 

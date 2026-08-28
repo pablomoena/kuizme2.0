@@ -184,3 +184,32 @@ export async function reorder(
   refresh(courseSlug);
   return OK;
 }
+
+/**
+ * Marca o desmarca una lección como muestra (D8).
+ *
+ * Es la palanca de venta: con una lección abierta, el alumno puede leer algo
+ * real antes de pagar. Abre SOLO el contenido de esa lección — el resto del
+ * curso sigue cerrado, y eso lo garantiza la política, no esta función.
+ */
+export async function setPreview(
+  lessonId: string,
+  isPreview: boolean,
+  courseSlug: string,
+): Promise<FormResult> {
+  await requireStaff();
+  if (!uuid.safeParse(lessonId).success) return { error: 'Identificador inválido.' };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('lessons')
+    .update({ is_preview: isPreview })
+    .eq('id', lessonId)
+    .select('id');
+
+  if (error) return { error: `No se pudo cambiar la muestra: ${error.message}` };
+  if (data.length === 0) return { error: 'No tienes permiso para editar esto, o ya no existe.' };
+
+  refresh(courseSlug);
+  return OK;
+}

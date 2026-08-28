@@ -624,6 +624,58 @@ export type Database = {
           },
         ];
       };
+      lesson_contents: {
+        Row: {
+          lesson_id: string;
+          organization_id: string;
+          course_id: string;
+          body: string | null;
+          video_id: string | null;
+          external_url: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          lesson_id: string;
+          organization_id: string;
+          course_id: string;
+          body?: string | null;
+          video_id?: string | null;
+          external_url?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          lesson_id?: string;
+          organization_id?: string;
+          course_id?: string;
+          body?: string | null;
+          video_id?: string | null;
+          external_url?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'lesson_contents_course_id_fkey';
+            columns: ['course_id'];
+            isOneToOne: false;
+            referencedRelation: 'courses';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'lesson_contents_lesson_id_fkey';
+            columns: ['lesson_id'];
+            isOneToOne: true;
+            referencedRelation: 'lessons';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'lesson_contents_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       lessons: {
         Row: {
           id: string;
@@ -633,9 +685,6 @@ export type Database = {
           kind: Database['public']['Enums']['lesson_kind'];
           order_index: number;
           is_required: boolean;
-          body: string | null;
-          video_id: string | null;
-          external_url: string | null;
           duration_seconds: number | null;
           unlock_after_days: number | null;
           unlock_at: string | null;
@@ -643,6 +692,7 @@ export type Database = {
           updated_at: string;
           exam_id: string | null;
           course_id: string;
+          is_preview: boolean;
         };
         Insert: {
           id?: string;
@@ -652,9 +702,6 @@ export type Database = {
           kind?: Database['public']['Enums']['lesson_kind'];
           order_index?: number;
           is_required?: boolean;
-          body?: string | null;
-          video_id?: string | null;
-          external_url?: string | null;
           duration_seconds?: number | null;
           unlock_after_days?: number | null;
           unlock_at?: string | null;
@@ -662,6 +709,7 @@ export type Database = {
           updated_at?: string;
           exam_id?: string | null;
           course_id?: string;
+          is_preview?: boolean;
         };
         Update: {
           id?: string;
@@ -671,9 +719,6 @@ export type Database = {
           kind?: Database['public']['Enums']['lesson_kind'];
           order_index?: number;
           is_required?: boolean;
-          body?: string | null;
-          video_id?: string | null;
-          external_url?: string | null;
           duration_seconds?: number | null;
           unlock_after_days?: number | null;
           unlock_at?: string | null;
@@ -681,6 +726,7 @@ export type Database = {
           updated_at?: string;
           exam_id?: string | null;
           course_id?: string;
+          is_preview?: boolean;
         };
         Relationships: [
           {
