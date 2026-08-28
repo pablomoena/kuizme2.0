@@ -78,6 +78,7 @@ concreto y documentado de la v1:
 | D7 | La lectura de contenido se gana, no se hereda | Membresía daba lectura de todo el tenant |
 | D8 | La ficha de la lección y su contenido, en tablas distintas | Sin temario visible no hay página de venta |
 | D9 | Completar exige matrícula; el progreso, una sola definición | Progreso fabricable y totales que bailaban |
+| D10 | Cómo se entrega el contenido se configura por curso | Un diplomado y un curso libre no se entregan igual |
 
 ## La puerta
 
@@ -145,6 +146,30 @@ Se midió quitando cada clave y contando errores: `Relationships` 5, `Views` 4,
 generan** (`npm run db:types`) y hay dos guardas: `npm run db:types:check` en CI
 para la deriva contra el esquema, y `tests/types/db-inference.ts`, que afirma en
 tiempo de compilación que las consultas resuelven a una forma concreta.
+
+## Entrega del contenido (D10)
+
+Dos ajustes por curso, independientes y combinables:
+
+- `release_mode`: `immediate` (todo abierto), `scheduled` (por `lessons.unlock_at`,
+  igual para todos), `relative` (por `lessons.unlock_after_days` desde SU
+  matrícula).
+- `sequential`: si además hay que ir en orden.
+
+**Una sola puerta: `can_open_lesson()`.** Responde "¿puede este usuario abrir el
+contenido de esta lección ahora?" y la usan la política de lectura, la de
+completar y la vista de la interfaz. Un bloqueo que solo vive en la pantalla no
+es un bloqueo: basta pedir el contenido por la API. Cada comprobación de
+`tests/db/release-modes.sql` mira **la puerta y las filas que llegan**, porque el
+fallo interesante es que la puerta diga "no" y el contenido llegue igual.
+
+**Completar exige que la lección esté abierta.** Si no, el bloqueo secuencial se
+saltaría a sí mismo: completo la última lección sin leerla y me abro el camino.
+
+`my_lesson_availability` alimenta la interfaz. Su `is_open` sale de
+`can_open_lesson`, así que la pantalla no puede discrepar de la base; `opens_at` y
+`reason` son explicativos y no deciden nada. En `src/lib/courses/release.ts`, un
+`reason` desconocido cae en el más restrictivo — nunca en "abierta".
 
 ## El progreso
 

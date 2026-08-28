@@ -115,6 +115,12 @@ jobs:
       - name: Progreso y lecciones completadas
         run: $PSQL -f tests/db/progress.sql
 
+      # D10 · La entrega configurada por curso, aplicada en la base. Cada
+      # comprobación mira la puerta Y el contenido que llega: que la puerta diga
+      # "no" y el contenido llegue igual sería el fallo que esto busca.
+      - name: Modos de entrega del contenido
+        run: $PSQL -f tests/db/release-modes.sql
+
       # Va al final: traspasa la propiedad de todas las tablas y funciones a un
       # rol sin bypassrls, así que deja la base inservible para otras pruebas.
       - name: Independencia de los privilegios del dueño
