@@ -5,6 +5,7 @@ import { requireStaff } from '@/lib/auth/guard';
 import { getCourse } from '@/lib/courses/queries';
 import { EstadoCurso } from '@/components/estado-curso';
 import { ArbolContenido } from '@/components/arbol-contenido';
+import { EntregaCurso } from '@/components/entrega-curso';
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -41,6 +42,13 @@ export default async function CursoPage({ params }: Props) {
         <EstadoCurso status={course.status} visibility={course.visibility} />
       </header>
 
+      <EntregaCurso
+        courseId={course.id}
+        courseSlug={course.slug}
+        releaseMode={course.release_mode}
+        sequential={course.sequential}
+      />
+
       <section className="flex flex-col gap-3">
         <h2 className="font-medium">Contenido</h2>
         <p className="text-sm text-ink-muted">
@@ -52,6 +60,7 @@ export default async function CursoPage({ params }: Props) {
           courseId={course.id}
           courseSlug={course.slug}
           modules={course.modules}
+          releaseMode={course.release_mode}
         />
       </section>
     </div>

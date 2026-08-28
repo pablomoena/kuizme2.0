@@ -165,3 +165,33 @@ begin
   end if;
   raise notice 'OK: % slugs de curso inválidos rechazados', rechazados;
 end $$;
+
+-- ── RLS activo en todas, y FORCE en ninguna ───────────────────────────────
+-- FORCE es incompatible con el patrón de helpers SECURITY DEFINER: el dueño de
+-- la función queda sujeto a RLS y ninguna política le aplica. Lo que protege a
+-- los usuarios es RLS ACTIVO más las políticas, y eso sí tiene que estar en
+-- todas. Se afirma contra el catálogo, no contra el texto de las migraciones.
+do $$
+declare
+  sin_rls text;
+  con_force text;
+begin
+  select string_agg(c.relname, ', ' order by c.relname) into sin_rls
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
+
+  if sin_rls is not null then
+    raise exception 'FALLA: hay tablas sin RLS activo: %', sin_rls;
+  end if;
+  raise notice 'OK: RLS activo en todas las tablas de public';
+
+  select string_agg(c.relname, ', ' order by c.relname) into con_force
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind = 'r' and c.relforcerowsecurity;
+
+  if con_force is not null then
+    raise exception 'FALLA: estas tablas tienen FORCE y romperán los helpers '
+                    'SECURITY DEFINER si el rol dueño no se salta RLS: %', con_force;
+  end if;
+  raise notice 'OK: ninguna tabla con FORCE';
+end $$;

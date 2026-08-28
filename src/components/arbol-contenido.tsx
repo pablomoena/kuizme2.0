@@ -4,6 +4,8 @@ import { Ordenador } from './ordenador';
 import { FilaEditable } from './fila-editable';
 import { AgregarInline } from './agregar-inline';
 import { MarcaMuestra } from './marca-muestra';
+import { AperturaLeccion } from './apertura-leccion';
+import type { ReleaseMode } from '@/lib/courses/release';
 import {
   createLesson,
   createModule,
@@ -25,10 +27,12 @@ export function ArbolContenido({
   courseId,
   courseSlug,
   modules,
+  releaseMode,
 }: {
   courseId: string;
   courseSlug: string;
   modules: CourseDetail['modules'];
+  releaseMode: ReleaseMode;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -82,6 +86,13 @@ export function ArbolContenido({
                           lessonId={leccion.id}
                           isPreview={leccion.is_preview}
                           courseSlug={courseSlug}
+                        />
+                        <AperturaLeccion
+                          lessonId={leccion.id}
+                          courseSlug={courseSlug}
+                          releaseMode={releaseMode}
+                          unlockAt={leccion.unlock_at}
+                          unlockAfterDays={leccion.unlock_after_days}
                         />
                       </div>
                     )}

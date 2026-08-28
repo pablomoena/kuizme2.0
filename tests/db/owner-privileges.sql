@@ -40,15 +40,32 @@ begin
   end loop;
 end $$;
 
--- Semilla mínima: una organización, un admin, un curso.
+-- Semilla: un admin Y un alumno matriculado en un curso privado publicado.
+--
+-- El alumno es la parte que importa. La primera versión de esta prueba usaba
+-- solo el administrador, que llega por has_org_role → memberships, y pasaba
+-- mientras el camino del alumno —is_enrolled_in → enrollments— estaba roto:
+-- devolvía false y el alumno no veía nada. Una prueba que solo cubre el camino
+-- fácil da una confianza que no corresponde.
 insert into auth.users (id, email) values
-  ('ee000000-0000-0000-0000-000000000001', 'dueno@test.cl');
+  ('ee000000-0000-0000-0000-000000000001', 'dueno@test.cl'),
+  ('ee000000-0000-0000-0000-000000000002', 'alumno.dueno@test.cl');
 insert into organizations (id, slug, name) values
   ('0e000000-0000-0000-0000-000000000001', 'instituto-e', 'Instituto E');
 insert into memberships (user_id, organization_id, role) values
-  ('ee000000-0000-0000-0000-000000000001', '0e000000-0000-0000-0000-000000000001', 'org_admin');
-insert into courses (id, organization_id, slug, title) values
-  ('e1000000-0000-0000-0000-000000000001', '0e000000-0000-0000-0000-000000000001', 'curso-e', 'Curso de E');
+  ('ee000000-0000-0000-0000-000000000001', '0e000000-0000-0000-0000-000000000001', 'org_admin'),
+  ('ee000000-0000-0000-0000-000000000002', '0e000000-0000-0000-0000-000000000001', 'student');
+insert into courses (id, organization_id, slug, title, status, visibility) values
+  ('e1000000-0000-0000-0000-000000000001', '0e000000-0000-0000-0000-000000000001',
+   'curso-e', 'Curso de E', 'published', 'private');
+insert into modules (id, course_id, title) values
+  ('e2000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001', 'Módulo de E');
+insert into lessons (id, module_id, title) values
+  ('e3000000-0000-0000-0000-000000000001', 'e2000000-0000-0000-0000-000000000001', 'Lección de E');
+insert into lesson_contents (lesson_id, body) values
+  ('e3000000-0000-0000-0000-000000000001', 'CONTENIDO DE E');
+insert into enrollments (course_id, student_id, status) values
+  ('e1000000-0000-0000-0000-000000000001', 'ee000000-0000-0000-0000-000000000002', 'active');
 
 set client_min_messages = notice;
 
@@ -73,6 +90,29 @@ begin
   end if;
   raise notice 'OK    courses legible con dueño sin bypassrls      → % fila(s)', n;
 
+  -- El camino del ALUMNO: is_enrolled_in lee enrollments como el dueño. Si esa
+  -- tabla tiene FORCE, devuelve false y el alumno se queda sin nada.
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', 'ee000000-0000-0000-0000-000000000002', 'role', 'authenticated')::text, true);
+
+  if not is_enrolled_in('e1000000-0000-0000-0000-000000000001') then
+    raise exception 'FALLA: is_enrolled_in devuelve false para un alumno matriculado. '
+                    'La tabla enrollments quedó con `force row level security`.';
+  end if;
+  raise notice 'OK    is_enrolled_in funciona para el matriculado';
+
+  select count(*) into n from courses;
+  if n <> 1 then
+    raise exception 'FALLA: el alumno matriculado ve % curso(s), esperaba 1', n;
+  end if;
+  raise notice 'OK    el alumno matriculado ve su curso            → % fila(s)', n;
+
+  select count(*) into n from lesson_contents;
+  if n <> 1 then
+    raise exception 'FALLA: el alumno matriculado alcanza % contenido(s), esperaba 1', n;
+  end if;
+  raise notice 'OK    y alcanza el contenido                      → % fila(s)', n;
+
   -- Y sigue aislado: un usuario sin membresía no ve nada.
   perform set_config('request.jwt.claims',
     json_build_object('sub', 'ee000000-0000-0000-0000-0000000000ff', 'role', 'authenticated')::text, true);
@@ -81,6 +121,23 @@ begin
     raise exception 'FALLA: un usuario sin membresía ve % curso(s)', n;
   end if;
   raise notice 'OK    sin membresía no ve nada                     → % fila(s)', n;
+end $$;
+rollback;
+
+-- ── Y los triggers, que también son SECURITY DEFINER ───────────────────────
+-- set_organization_id() lee la tabla padre como el dueño. Con FORCE ahí, cada
+-- inserción falla con "No se puede derivar organization_id".
+begin;
+do $$
+declare org uuid;
+begin
+  insert into lessons (id, module_id, title)
+    values ('e3000000-0000-0000-0000-0000000000aa', 'e2000000-0000-0000-0000-000000000001', 'Derivada');
+  select organization_id into org from lessons where id = 'e3000000-0000-0000-0000-0000000000aa';
+  if org is distinct from '0e000000-0000-0000-0000-000000000001' then
+    raise exception 'FALLA: el trigger no derivó organization_id con dueño sin bypassrls';
+  end if;
+  raise notice 'OK    los triggers derivan sus claves';
 end $$;
 rollback;
 

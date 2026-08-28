@@ -2,6 +2,7 @@ import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import type { Enum } from '@/lib/db/types';
 import type { QueryResult } from './queries';
+import { esReason, type Reason } from './release';
 
 /**
  * Lo que ve el ALUMNO. Consultas separadas de las del editor a propósito: son
@@ -86,9 +87,12 @@ export type StudentLesson = {
   duration_seconds: number | null;
   /** El cuerpo, si este usuario puede leerlo. RLS decide; acá solo se refleja. */
   body: string | null;
-  /** true si el contenido llegó: matrícula, o lección de muestra. */
+  /** true si el contenido llegó: la puerta de la base lo decidió, no la interfaz. */
   readable: boolean;
   completed: boolean;
+  /** Por qué está cerrada, y cuándo abre. Explicativo; no decide acceso. */
+  reason: Reason;
+  opensAt: string | null;
 };
 
 export type StudentCourse = {
@@ -123,7 +127,7 @@ export async function getCourseForStudent(
   if (error) return { data: null, error: error.message };
   if (!course) return { data: null, error: null };
 
-  const [contenidos, matricula, completadas, progreso] = await Promise.all([
+  const [contenidos, matricula, completadas, progreso, apertura] = await Promise.all([
     // Llegan solo las que este usuario puede leer. Esa es la autorización.
     supabase.from('lesson_contents').select('lesson_id, body').eq('course_id', course.id),
     supabase
@@ -142,14 +146,26 @@ export async function getCourseForStudent(
       .select('completed, total, percent')
       .eq('course_id', course.id)
       .maybeSingle(),
+    // El motivo del bloqueo y la fecha de apertura, de la misma vista cuyo
+    // is_open sale de can_open_lesson. Una sola autoridad.
+    supabase
+      .from('my_lesson_availability')
+      .select('lesson_id, reason, opens_at')
+      .eq('course_id', course.id),
   ]);
 
   if (contenidos.error) return { data: null, error: contenidos.error.message };
   if (completadas.error) return { data: null, error: completadas.error.message };
   if (progreso.error) return { data: null, error: progreso.error.message };
+  if (apertura.error) return { data: null, error: apertura.error.message };
 
   const cuerpo = new Map(contenidos.data.map((c) => [c.lesson_id, c.body]));
   const hechas = new Set(completadas.data.map((c) => c.lesson_id));
+  const motivos = new Map(
+    apertura.data.flatMap((a) =>
+      a.lesson_id === null ? [] : [[a.lesson_id, { reason: esReason(a.reason), opensAt: a.opens_at }] as const],
+    ),
+  );
 
   const modules = [...course.modules]
     .sort((a, b) => a.order_index - b.order_index)
@@ -169,6 +185,8 @@ export async function getCourseForStudent(
           body: cuerpo.get(l.id) ?? null,
           readable: cuerpo.has(l.id),
           completed: hechas.has(l.id),
+          reason: motivos.get(l.id)?.reason ?? 'sin-matricula',
+          opensAt: motivos.get(l.id)?.opensAt ?? null,
         })),
     }));
 

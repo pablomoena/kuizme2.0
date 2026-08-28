@@ -213,3 +213,75 @@ export async function setPreview(
   refresh(courseSlug);
   return OK;
 }
+
+/**
+ * Configuración de entrega del curso (D10). Solo el modo y la secuencia; las
+ * fechas y los plazos van por lección, porque es donde el docente los piensa.
+ */
+export async function setRelease(
+  courseId: string,
+  releaseMode: 'immediate' | 'scheduled' | 'relative',
+  sequential: boolean,
+  courseSlug: string,
+): Promise<FormResult> {
+  await requireStaff();
+  if (!uuid.safeParse(courseId).success) return { error: 'Identificador inválido.' };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('courses')
+    .update({ release_mode: releaseMode, sequential })
+    .eq('id', courseId)
+    .select('id');
+
+  if (error) return { error: `No se pudo guardar la configuración: ${error.message}` };
+  if (data.length === 0) return { error: 'No tienes permiso para editar este curso.' };
+
+  refresh(courseSlug);
+  return OK;
+}
+
+/**
+ * Cuándo se abre una lección. Se guarda el campo que corresponde al modo del
+ * curso; el otro se deja como está, para no perder lo configurado si el
+ * administrador cambia de modo y vuelve.
+ */
+export async function setLessonUnlock(
+  lessonId: string,
+  campo: 'unlock_at' | 'unlock_after_days',
+  valor: string | null,
+  courseSlug: string,
+): Promise<FormResult> {
+  await requireStaff();
+  if (!uuid.safeParse(lessonId).success) return { error: 'Identificador inválido.' };
+
+  let patch: { unlock_at?: string | null; unlock_after_days?: number | null };
+
+  if (campo === 'unlock_at') {
+    if (valor && Number.isNaN(Date.parse(valor))) return { error: 'Esa fecha no es válida.' };
+    patch = { unlock_at: valor && valor.length > 0 ? new Date(valor).toISOString() : null };
+  } else {
+    if (valor === null || valor.length === 0) {
+      patch = { unlock_after_days: null };
+    } else {
+      const dias = Number(valor);
+      if (!Number.isInteger(dias) || dias < 0) {
+        return { error: 'Los días tienen que ser un número entero de 0 o más.' };
+      }
+      patch = { unlock_after_days: dias };
+    }
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('lessons')
+    .update(patch)
+    .eq('id', lessonId)
+    .select('id');
+
+  if (error) return { error: `No se pudo guardar: ${error.message}` };
+  if (data.length === 0) return { error: 'No tienes permiso para editar esta lección.' };
+
+  refresh(courseSlug);
+  return OK;
+}

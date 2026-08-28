@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { StudentCourse } from '@/lib/courses/catalog';
+import { explicarBloqueo } from '@/lib/courses/release';
 
 function duracion(segundos: number | null): string | null {
   if (segundos === null || segundos <= 0) return null;
@@ -73,7 +74,11 @@ export function Temario({
                       {l.is_required ? null : (
                         <span className="text-xs text-ink-muted">opcional</span>
                       )}
-                      <span className="ml-auto text-xs text-ink-muted">Requiere matrícula</span>
+                      {/* El motivo concreto: una fecha, un plazo, o qué hacer.
+                          "No disponible" no le sirve a nadie. */}
+                      <span className="ml-auto text-xs text-ink-muted">
+                        {explicarBloqueo(l.reason, l.opensAt ? new Date(l.opensAt) : null)}
+                      </span>
                     </p>
                   )}
                 </li>

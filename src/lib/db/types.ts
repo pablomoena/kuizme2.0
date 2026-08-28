@@ -70,6 +70,8 @@ export type Database = {
           published_at: string | null;
           created_at: string;
           updated_at: string;
+          release_mode: Database['public']['Enums']['course_release_mode'];
+          sequential: boolean;
         };
         Insert: {
           id?: string;
@@ -90,6 +92,8 @@ export type Database = {
           published_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          release_mode?: Database['public']['Enums']['course_release_mode'];
+          sequential?: boolean;
         };
         Update: {
           id?: string;
@@ -110,6 +114,8 @@ export type Database = {
           published_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          release_mode?: Database['public']['Enums']['course_release_mode'];
+          sequential?: boolean;
         };
         Relationships: [
           {
@@ -1159,8 +1165,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      my_lesson_availability: {
+        Row: {
+          lesson_id: string | null;
+          course_id: string | null;
+          is_open: boolean | null;
+          opens_at: string | null;
+          reason: string | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
+      can_open_lesson: {
+        Args: {
+          _lesson: string;
+        };
+        Returns: boolean;
+      };
       can_study_course: {
         Args: {
           _course: string;
@@ -1222,6 +1244,7 @@ export type Database = {
     CompositeTypes: { [_ in never]: never };
     Enums: {
       attempt_status: 'in_progress' | 'submitted' | 'graded' | 'expired';
+      course_release_mode: 'immediate' | 'scheduled' | 'relative';
       course_status: 'draft' | 'published' | 'archived';
       course_visibility: 'private' | 'unlisted' | 'public';
       enrollment_status: 'active' | 'completed' | 'suspended' | 'cancelled';

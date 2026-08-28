@@ -137,9 +137,15 @@ describe('invariantes del esquema', () => {
     }
   });
 
-  it('RLS activo y forzado en todas las tablas listadas', () => {
+  it('RLS se activa en todas las tablas listadas', () => {
     expect(sql).toMatch(/enable row level security/);
-    expect(sql).toMatch(/force row level security/);
+  });
+
+  it('FORCE se retira: es incompatible con los helpers SECURITY DEFINER', () => {
+    // Que no quede ninguna tabla con FORCE se afirma contra el catálogo en
+    // tests/db/schema-behavior.sql, que es donde se puede comprobar el hecho.
+    // Acá solo se fija que la retirada sigue en las migraciones y con su motivo.
+    expect(sql).toMatch(/no force row level security/);
   });
 
   it('toda función SECURITY DEFINER fija search_path', () => {

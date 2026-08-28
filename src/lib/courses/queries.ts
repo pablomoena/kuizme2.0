@@ -62,6 +62,8 @@ export type CourseDetail = {
   description: string | null;
   status: Enum<'course_status'>;
   visibility: Enum<'course_visibility'>;
+  release_mode: Enum<'course_release_mode'>;
+  sequential: boolean;
   modules: {
     id: string;
     title: string;
@@ -75,6 +77,8 @@ export type CourseDetail = {
       is_required: boolean;
       /** D8: su contenido se lee sin matrícula. La lección de muestra. */
       is_preview: boolean;
+      unlock_at: string | null;
+      unlock_after_days: number | null;
     }[];
   }[];
 };
@@ -88,9 +92,10 @@ export async function getCourse(
   const { data, error } = await supabase
     .from('courses')
     .select(
-      `id, slug, title, subtitle, description, status, visibility,
+      `id, slug, title, subtitle, description, status, visibility, release_mode, sequential,
        modules(id, title, description, order_index,
-               lessons(id, title, kind, order_index, is_required, is_preview))`,
+               lessons(id, title, kind, order_index, is_required, is_preview,
+                       unlock_at, unlock_after_days))`,
     )
     .eq('organization_id', organizationId)
     .eq('slug', slug)
