@@ -41,6 +41,14 @@ bug sino una brecha de datos.
 - **Los alumnos no escriben en `exam_attempts`.** Las transiciones de estado
   pasan por el servidor.
 - **Todo cambio de nota deja registro en `grade_changes`,** con motivo.
+- **La membresía no da lectura del contenido.** Pertenecer a la organización no
+  es lo mismo que poder leerla. Módulos y lecciones exigen `can_study_course()`;
+  el material de evaluación (bancos, preguntas, alternativas, armado del examen)
+  no tiene política de lectura para alumnos y lo entrega el servidor.
+- **RLS no concede lecturas entre tenants, nunca.** Ni para un catálogo público:
+  toda rama de una política que afloje por estado o visibilidad lleva
+  `is_member_of` al lado. El catálogo entre organizaciones lo sirve el servidor,
+  con el tenant ya resuelto desde el hostname.
 
 ## Decisiones de diseño del esquema
 
@@ -55,6 +63,7 @@ concreto y documentado de la v1:
 | D4 | Intento como máquina de estados, sin `UPDATE` de alumno | Alumnos podían escribirse la nota |
 | D5 | `grade_changes` con motivo obligatorio | Notas editadas a mano sin trazabilidad |
 | D6 | Una columna canónica por decisión | `is_public` vs `visibility` en 22 políticas |
+| D7 | La lectura de contenido se gana, no se hereda | Membresía daba lectura de todo el tenant |
 
 `tests/unit/schema-invariants.test.ts` verifica estas decisiones en CI para que
 nadie las deshaga sin darse cuenta.
@@ -76,6 +85,19 @@ Por eso `tests/db/stubs.sql` **emula esos default privileges**: sin ellos, las
 pruebas locales pasan mientras la base real está distinta. Cualquier tabla nueva
 tiene que revocarse explícitamente si no debe ser alcanzable, y el test de
 comportamiento lo verifica en CI.
+
+**3. El rol dueño de tus pruebas se salta RLS; el de Supabase quizá no.** Los
+helpers `is_member_of()` y `has_org_role()` son `security definer`, así que
+corren como el dueño de la función. Si ese rol queda sujeto a RLS, ninguna
+política le aplica —están declaradas `to authenticated`— y devuelven false para
+todo: la aplicación se queda en blanco. En local y en CI el dueño es
+superusuario y el problema es invisible.
+
+Por eso `memberships` y `platform_admins` tienen RLS activo pero **sin
+`force`**, y `tests/db/owner-privileges.sql` traspasa todo a un rol
+`nosuperuser nobypassrls` y comprueba que sigue funcionando. Es la misma lección
+que la trampa 2: si el entorno de prueba es más permisivo que el real, la prueba
+pasa y la producción está distinta.
 
 ## Comandos
 

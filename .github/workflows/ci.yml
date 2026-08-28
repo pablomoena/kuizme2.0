@@ -78,3 +78,14 @@ jobs:
       # afirmación de que el tenant A no alcanza nada del tenant B.
       - name: Aislamiento entre tenants
         run: $PSQL -f tests/db/tenant-isolation.sql
+
+      # D7 · Dentro de una misma organización, un alumno solo alcanza lo que le
+      # corresponde. La suite de aislamiento cubre tenant contra tenant; esta
+      # cubre el agujero que había dentro del tenant.
+      - name: Acceso a contenido
+        run: $PSQL -f tests/db/content-access.sql
+
+      # Va al final: traspasa la propiedad de todas las tablas y funciones a un
+      # rol sin bypassrls, así que deja la base inservible para otras pruebas.
+      - name: Independencia de los privilegios del dueño
+        run: $PSQL -f tests/db/owner-privileges.sql
