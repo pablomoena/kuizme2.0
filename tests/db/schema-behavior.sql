@@ -78,6 +78,45 @@ select relrowsecurity as rls_activo, relforcerowsecurity as rls_forzado
   from pg_class where relname='question_keys';
 
 \echo ''
+\echo '── Permisos: authenticated alcanza las tablas de tenant ──'
+select count(*) as tablas_legibles_por_authenticated
+from information_schema.role_table_grants
+where grantee = 'authenticated' and privilege_type = 'SELECT' and table_schema = 'public';
+
+\echo ''
+\echo '── D3: doble candado sobre question_keys (sin política Y sin GRANT) ──'
+select
+  (select count(*) from pg_policies
+     where schemaname='public' and tablename='question_keys') as politicas,
+  (select count(*) from information_schema.role_table_grants
+     where table_schema='public' and table_name='question_keys'
+       and grantee in ('authenticated','anon')) as grants_a_usuarios;
+do $$
+declare _n int;
+begin
+  select count(*) into _n from information_schema.role_table_grants
+   where table_schema='public' and table_name='question_keys'
+     and grantee in ('authenticated','anon');
+  if _n > 0 then
+    raise exception 'FALLO: question_keys tiene % grants para roles de usuario', _n;
+  end if;
+  raise notice 'OK: question_keys inalcanzable para anon y authenticated';
+end $$;
+
+\echo ''
+\echo '── anon no alcanza ninguna tabla ──'
+do $$
+declare _n int;
+begin
+  select count(*) into _n from information_schema.role_table_grants
+   where table_schema='public' and grantee='anon';
+  if _n > 0 then
+    raise exception 'FALLO: anon tiene % grants; debería ser 0', _n;
+  end if;
+  raise notice 'OK: anon sin acceso directo a tablas';
+end $$;
+
+\echo ''
 \echo '── Resumen ──'
 select count(*) as tablas from pg_tables where schemaname='public';
 select count(*) as politicas from pg_policies where schemaname='public';
