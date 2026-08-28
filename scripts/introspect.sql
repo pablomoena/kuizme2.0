@@ -15,6 +15,29 @@ select json_build_object(
     ) v on true
     where n.nspname = 'public' and t.typtype = 'e'
   ),
+  'views', (
+    select coalesce(json_agg(json_build_object(
+      'name', c.relname,
+      'columns', cols.list
+    ) order by c.relname), '[]'::json)
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    join lateral (
+      select json_agg(json_build_object(
+        'name', a.attname,
+        'udt',  ty.typname,
+        -- Una vista no declara NOT NULL, así que todo se emite anulable: es lo
+        -- honesto, y obliga a manejar el caso de la fila que no existe.
+        'notNull', false
+      ) order by a.attnum) as list
+      from pg_attribute a
+      join pg_type ty on ty.oid = a.atttypid
+      where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+    ) cols on true
+    where n.nspname = 'public'
+      and c.relkind in ('v', 'm')
+      and has_table_privilege('authenticated', c.oid, 'SELECT')
+  ),
   'functions', (
     select coalesce(json_agg(json_build_object(
       'name', p.proname,
@@ -68,20 +91,27 @@ select json_build_object(
       join pg_type ty on ty.oid = a.atttypid
       where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
     ) cols on true
-    -- Columnas que rellena un trigger (D2). Deben ser opcionales en Insert: si
-    -- el tipo las exige, la aplicación pasa la organización a mano y se pierde
-    -- justamente la garantía que da derivarla del padre.
+    -- Columnas que un trigger DERIVA del padre. Deben ser opcionales en Insert:
+    -- si el tipo las exige, la aplicación pasa la organización o el curso a mano
+    -- y se pierde justamente la garantía que da derivarlos (D2).
+    --
+    -- Se marcan con un comentario de columna que empieza por "derivada". Se
+    -- probaron dos alternativas y las dos fallan:
+    --
+    --   · Una lista de nombres de función de trigger en este archivo: se quedó
+    --     atrás al añadir un trigger nuevo, y los tipos pasaron a exigir una
+    --     columna que la base ya rellenaba.
+    --   · Leer el código del trigger buscando asignaciones a new.<columna>: no
+    --     distingue derivar de normalizar. normalize_course_slug asigna new.slug,
+    --     y marcar el slug como opcional sería falso — es obligatorio.
+    --
+    -- El comentario es explícito, viaja en la migración y se revisa junto al
+    -- resto del cambio.
     join lateral (
-      select coalesce(json_agg(distinct col), '[]'::json) as list
-      from (
-        select case p.proname
-                 when 'set_organization_id'  then 'organization_id'
-                 when 'set_lesson_course_id' then 'course_id'
-               end as col
-        from pg_trigger tg
-        join pg_proc p on p.oid = tg.tgfoid
-        where tg.tgrelid = c.oid and not tg.tgisinternal
-      ) t where col is not null
+      select coalesce(json_agg(a.attname), '[]'::json) as list
+      from pg_attribute a
+      where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+        and col_description(c.oid, a.attnum) ilike 'derivada%'
     ) derived on true
     -- Claves foráneas. postgrest-js exige Relationships en cada tabla: sin esa
     -- clave el tipo no satisface GenericTable y TODA consulta resuelve a `never`

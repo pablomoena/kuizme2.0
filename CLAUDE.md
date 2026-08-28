@@ -77,6 +77,7 @@ concreto y documentado de la v1:
 | D6 | Una columna canónica por decisión | `is_public` vs `visibility` en 22 políticas |
 | D7 | La lectura de contenido se gana, no se hereda | Membresía daba lectura de todo el tenant |
 | D8 | La ficha de la lección y su contenido, en tablas distintas | Sin temario visible no hay página de venta |
+| D9 | Completar exige matrícula; el progreso, una sola definición | Progreso fabricable y totales que bailaban |
 
 ## La puerta
 
@@ -144,6 +145,26 @@ Se midió quitando cada clave y contando errores: `Relationships` 5, `Views` 4,
 generan** (`npm run db:types`) y hay dos guardas: `npm run db:types:check` en CI
 para la deriva contra el esquema, y `tests/types/db-inference.ts`, que afirma en
 tiempo de compilación que las consultas resuelven a una forma concreta.
+
+## El progreso
+
+**Una sola definición: la vista `my_course_progress`.** No se calcula en ninguna
+pantalla. Devuelve `completed`, `total` y `percent` juntos a propósito: en la v1
+una pantalla recibía solo el porcentaje y reconstruía el total dividiendo
+(`Math.round((completedCount / courseProgress) * 100)`), y los totales cambiaban
+al navegar. Si el denominador viene con el resultado, no hay nada que
+reconstruir. La barra de progreso muestra siempre "3 de 8", nunca solo el 37%.
+
+Cuenta **solo las lecciones obligatorias**: una opcional que nadie abre no debería
+dejar un curso al 90% para siempre.
+
+**Completar una lección exige poder estudiarla.** La política pedía solo
+membresía en la organización, y como `organization_id` lo deriva un trigger
+`security definer`, se cumplía siempre: un alumno sin ninguna matrícula marcaba
+como completadas lecciones de cursos que no podía ni ver, borradores incluidos.
+Con certificados en el producto, eso es un certificado sobre contenido que nadie
+leyó. Ahora exige `can_study_course()`, y se puede deshacer lo propio — solo baja
+el progreso, así que no abre abuso.
 
 ## Reordenar contenido
 

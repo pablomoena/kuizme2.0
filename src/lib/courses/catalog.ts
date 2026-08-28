@@ -23,6 +23,8 @@ export type CatalogItem = {
   status: Enum<'course_status'>;
   enrolled: boolean;
   lessonCount: number;
+  /** Desde la vista my_course_progress, que es la única definición (D9). */
+  progress: { completed: number; total: number; percent: number } | null;
 };
 
 export async function listCatalog(
@@ -31,7 +33,7 @@ export async function listCatalog(
 ): Promise<QueryResult<CatalogItem[]>> {
   const supabase = await createClient();
 
-  const [cursos, matriculas] = await Promise.all([
+  const [cursos, matriculas, progresos] = await Promise.all([
     supabase
       .from('courses')
       .select('id, slug, title, subtitle, status, lessons(id)')
@@ -39,12 +41,26 @@ export async function listCatalog(
       .eq('status', 'published')
       .order('title'),
     supabase.from('enrollments').select('course_id').eq('student_id', userId),
+    // El progreso NO se calcula acá. Se lee de la vista, y por eso no puede
+    // discrepar del que muestra el lector.
+    supabase.from('my_course_progress').select('course_id, completed, total, percent'),
   ]);
 
   if (cursos.error) return { data: null, error: cursos.error.message };
   if (matriculas.error) return { data: null, error: matriculas.error.message };
+  if (progresos.error) return { data: null, error: progresos.error.message };
 
   const inscrito = new Set(matriculas.data.map((e) => e.course_id));
+  const avance = new Map(
+    progresos.data.flatMap((p) =>
+      p.course_id === null
+        ? []
+        : [[
+            p.course_id,
+            { completed: p.completed ?? 0, total: p.total ?? 0, percent: p.percent ?? 0 },
+          ] as const],
+    ),
+  );
 
   return {
     data: cursos.data.map((c) => ({
@@ -55,6 +71,7 @@ export async function listCatalog(
       status: c.status,
       enrolled: inscrito.has(c.id),
       lessonCount: c.lessons.length,
+      progress: avance.get(c.id) ?? null,
     })),
     error: null,
   };
@@ -71,6 +88,7 @@ export type StudentLesson = {
   body: string | null;
   /** true si el contenido llegó: matrícula, o lección de muestra. */
   readable: boolean;
+  completed: boolean;
 };
 
 export type StudentCourse = {
@@ -80,6 +98,7 @@ export type StudentCourse = {
   subtitle: string | null;
   description: string | null;
   enrolled: boolean;
+  progress: { completed: number; total: number; percent: number } | null;
   modules: { id: string; title: string; description: string | null; lessons: StudentLesson[] }[];
 };
 
@@ -104,7 +123,7 @@ export async function getCourseForStudent(
   if (error) return { data: null, error: error.message };
   if (!course) return { data: null, error: null };
 
-  const [contenidos, matricula] = await Promise.all([
+  const [contenidos, matricula, completadas, progreso] = await Promise.all([
     // Llegan solo las que este usuario puede leer. Esa es la autorización.
     supabase.from('lesson_contents').select('lesson_id, body').eq('course_id', course.id),
     supabase
@@ -113,11 +132,24 @@ export async function getCourseForStudent(
       .eq('course_id', course.id)
       .eq('student_id', userId)
       .maybeSingle(),
+    supabase
+      .from('lesson_completions')
+      .select('lesson_id')
+      .eq('course_id', course.id)
+      .eq('student_id', userId),
+    supabase
+      .from('my_course_progress')
+      .select('completed, total, percent')
+      .eq('course_id', course.id)
+      .maybeSingle(),
   ]);
 
   if (contenidos.error) return { data: null, error: contenidos.error.message };
+  if (completadas.error) return { data: null, error: completadas.error.message };
+  if (progreso.error) return { data: null, error: progreso.error.message };
 
   const cuerpo = new Map(contenidos.data.map((c) => [c.lesson_id, c.body]));
+  const hechas = new Set(completadas.data.map((c) => c.lesson_id));
 
   const modules = [...course.modules]
     .sort((a, b) => a.order_index - b.order_index)
@@ -136,11 +168,23 @@ export async function getCourseForStudent(
           duration_seconds: l.duration_seconds,
           body: cuerpo.get(l.id) ?? null,
           readable: cuerpo.has(l.id),
+          completed: hechas.has(l.id),
         })),
     }));
 
   return {
-    data: { ...course, enrolled: matricula.data !== null, modules },
+    data: {
+      ...course,
+      enrolled: matricula.data !== null,
+      progress: progreso.data
+        ? {
+            completed: progreso.data.completed ?? 0,
+            total: progreso.data.total ?? 0,
+            percent: progreso.data.percent ?? 0,
+          }
+        : null,
+      modules,
+    },
     error: null,
   };
 }

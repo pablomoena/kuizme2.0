@@ -109,6 +109,12 @@ jobs:
       - name: Reordenar módulos y lecciones
         run: $PSQL -f tests/db/reorder.sql
 
+      # D9 · Que no se pueda fabricar progreso, y que el progreso tenga una sola
+      # definición. Un alumno sin matrícula llegaba a marcar completadas
+      # lecciones de cursos que no podía ni ver, incluidos borradores.
+      - name: Progreso y lecciones completadas
+        run: $PSQL -f tests/db/progress.sql
+
       # Va al final: traspasa la propiedad de todas las tablas y funciones a un
       # rol sin bypassrls, así que deja la base inservible para otras pruebas.
       - name: Independencia de los privilegios del dueño

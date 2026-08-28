@@ -41,11 +41,16 @@ const membership = db.from('memberships').select('role').maybeSingle();
 const organization = db.from('organizations').select('id, slug, name, status').maybeSingle();
 const tree = db.from('courses').select('id, title, modules(id, title, lessons(id, title))');
 
+// Y una vista, que es una forma distinta en el tipo Database (Row sin Insert ni
+// Update). Si Views vuelve a emitirse vacío, esta consulta deja de tipar.
+const progreso = db.from('my_course_progress').select('course_id, total, completed, percent');
+
 type Data<T> = Awaited<T> extends { data: infer D } ? D : never;
 
 export type _MembershipResolves = Assert<Resolves<NonNullable<Data<typeof membership>>>>;
 export type _OrganizationResolves = Assert<Resolves<NonNullable<Data<typeof organization>>>>;
 export type _JoinResolves = Assert<Resolves<NonNullable<Data<typeof tree>>>>;
+export type _ViewResolves = Assert<Resolves<NonNullable<Data<typeof progreso>>>>;
 
 // Y la forma concreta, no solo que "resuelva a algo".
 export type _RoleIsTheEnum = Assert<
