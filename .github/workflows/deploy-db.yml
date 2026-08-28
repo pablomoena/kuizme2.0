@@ -31,16 +31,31 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PROJECT_REF: bmsefapphatpqtufbife
 
-      # Primero en seco: si el diff no es el esperado, se ve en el log antes de
-      # tocar nada.
-      - name: Diff contra el remoto
-        run: supabase db diff --linked || true
+      # Primero en seco: qué migraciones se aplicarían, antes de tocar nada.
+      #
+      # Era `supabase db diff --linked`, que tardaba dos minutos levantando una
+      # base sombra y volcaba el esquema completo — nadie leía eso. `db push
+      # --dry-run` imprime exactamente la lista que se va a aplicar, que es lo
+      # que se revisa de verdad, y tarda segundos.
+      - name: Qué se aplicaría
+        run: supabase db push --include-all --dry-run --yes
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
+      # `--yes` no es cosmético. Sin él, `db push` PREGUNTA:
+      #
+      #   Do you want to push these migrations to the remote database?
+      #    • 20260828080000_controles_inscripcion.sql
+      #    [Y/n]
+      #
+      # En CI nadie contesta, y funcionaba porque el CLI lee fin-de-entrada y
+      # asume el valor por omisión, que hoy es "sí". Es decir: las migraciones se
+      # aplicaban gracias a un defecto del CLI y no porque este workflow lo
+      # pidiera. Si una versión cambiara ese defecto a "abortar", el deploy
+      # dejaría de aplicar nada. Ahora se pide explícito.
       - name: Aplicar migraciones
-        run: supabase db push --include-all
+        run: supabase db push --include-all --yes
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
