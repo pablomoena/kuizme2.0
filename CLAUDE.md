@@ -80,6 +80,7 @@ concreto y documentado de la v1:
 | D9 | Completar exige matrícula; el progreso, una sola definición | Progreso fabricable y totales que bailaban |
 | D10 | Cómo se entrega el contenido se configura por curso | Un diplomado y un curso libre no se entregan igual |
 | D11 | Dos vías de matrícula: la institución, y el alumno | Solo el staff podía matricular: no se podía vender |
+| D12 | Inscripción abierta, plazo y cupo, aplicados de verdad | Las tres existían en la v1 y ninguna funcionaba |
 
 ## La puerta
 
@@ -147,6 +148,31 @@ Se midió quitando cada clave y contando errores: `Relationships` 5, `Views` 4,
 generan** (`npm run db:types`) y hay dos guardas: `npm run db:types:check` en CI
 para la deriva contra el esquema, y `tests/types/db-inference.ts`, que afirma en
 tiempo de compilación que las consultas resuelven a una forma concreta.
+
+## Controles de inscripción (D12)
+
+Tres ajustes del curso, con **dos reglas distintas a propósito**:
+
+- `enrollment_open` y `enrollment_deadline` gobiernan solo la **auto-matrícula**.
+  Que la institución admita a alguien fuera de plazo es legítimo y no debería
+  exigir reabrir el curso para todos.
+- `max_students` gobierna **a todos, institución incluida**. Un cupo es
+  capacidad, no una regla sobre quién pide; si hace falta más, se sube el cupo y
+  eso queda como un cambio explícito en vez de una excepción invisible.
+
+Cuenta los `active`: quien termina o se da de baja libera su cupo, así el cupo
+sirve en un curso que se dicta más de una vez.
+
+**El cupo necesita un cerrojo.** Contar y después insertar es una carrera: dos
+alumnos que pulsan "Matricularme" a la vez pasan los dos. El trigger toma
+`for update` sobre la fila del curso, lo que serializa solo a quienes compiten
+por el mismo curso. Está probado con dos conexiones solapadas en
+`tests/db/race-cupo.sh` — no cabe en un archivo `.sql` — y verificado quitando el
+`for update`: entran dos en un cupo de uno.
+
+`self_enroll_blocker()` devuelve el **motivo** y no un booleano, y `can_self_enroll()`
+la envuelve. Así la interfaz dice "el curso completó su cupo" en vez de "no admite
+matrícula directa", que sería verdad y a la vez inútil.
 
 ## Matrícula (D11)
 

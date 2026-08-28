@@ -72,6 +72,9 @@ export type Database = {
           updated_at: string;
           release_mode: Database['public']['Enums']['course_release_mode'];
           sequential: boolean;
+          enrollment_open: boolean;
+          enrollment_deadline: string | null;
+          max_students: number | null;
         };
         Insert: {
           id?: string;
@@ -94,6 +97,9 @@ export type Database = {
           updated_at?: string;
           release_mode?: Database['public']['Enums']['course_release_mode'];
           sequential?: boolean;
+          enrollment_open?: boolean;
+          enrollment_deadline?: string | null;
+          max_students?: number | null;
         };
         Update: {
           id?: string;
@@ -116,6 +122,9 @@ export type Database = {
           updated_at?: string;
           release_mode?: Database['public']['Enums']['course_release_mode'];
           sequential?: boolean;
+          enrollment_open?: boolean;
+          enrollment_deadline?: string | null;
+          max_students?: number | null;
         };
         Relationships: [
           {
@@ -1319,6 +1328,12 @@ export type Database = {
           _ids: string[];
         };
         Returns: number;
+      };
+      self_enroll_blocker: {
+        Args: {
+          _course: string;
+        };
+        Returns: string;
       };
     };
     CompositeTypes: { [_ in never]: never };

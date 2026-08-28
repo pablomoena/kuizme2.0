@@ -285,3 +285,50 @@ export async function setLessonUnlock(
   refresh(courseSlug);
   return OK;
 }
+
+/**
+ * Controles de inscripción (D12): abierta, plazo y cupo.
+ *
+ * El cupo no se valida contra los matriculados actuales acá: bajarlo por debajo
+ * de los que ya están es legítimo —cerrar el ingreso sin echar a nadie— y el
+ * trigger de la base impide que entren más. Validarlo acá impediría ese caso.
+ */
+export async function setEnrollmentControls(
+  courseId: string,
+  enrollmentOpen: boolean,
+  deadline: string | null,
+  maxStudents: string | null,
+  courseSlug: string,
+): Promise<FormResult> {
+  await requireStaff();
+  if (!uuid.safeParse(courseId).success) return { error: 'Identificador inválido.' };
+
+  if (deadline && Number.isNaN(Date.parse(deadline))) {
+    return { error: 'Esa fecha no es válida.' };
+  }
+
+  let cupo: number | null = null;
+  if (maxStudents !== null && maxStudents.length > 0) {
+    cupo = Number(maxStudents);
+    if (!Number.isInteger(cupo) || cupo < 1) {
+      return { error: 'El cupo tiene que ser un número entero de 1 o más.' };
+    }
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('courses')
+    .update({
+      enrollment_open: enrollmentOpen,
+      enrollment_deadline: deadline ? new Date(deadline).toISOString() : null,
+      max_students: cupo,
+    })
+    .eq('id', courseId)
+    .select('id');
+
+  if (error) return { error: `No se pudo guardar: ${error.message}` };
+  if (data.length === 0) return { error: 'No tienes permiso para editar este curso.' };
+
+  refresh(courseSlug);
+  return OK;
+}

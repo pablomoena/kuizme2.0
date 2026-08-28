@@ -84,3 +84,68 @@ export function explicarBloqueo(
       return 'Completa la lección anterior';
   }
 }
+
+/**
+ * Por qué un alumno no puede auto-matricularse. Los valores vienen de
+ * self_enroll_blocker() en la base, que es la autoridad; esto solo los traduce.
+ *
+ * Aparte y puro porque decir "cupo agotado" cuando en realidad venció el plazo
+ * hace que el alumno insista por el camino equivocado.
+ */
+export type EnrollBlocker =
+  | 'no-existe'
+  | 'no-miembro'
+  | 'no-publicado'
+  | 'ya-matriculado'
+  | 'no-gratis'
+  | 'cerrada'
+  | 'plazo-vencido'
+  | 'cupo-lleno';
+
+export function esBlocker(valor: string | null): EnrollBlocker | null {
+  if (valor === null) return null;
+  const conocidos: EnrollBlocker[] = [
+    'no-existe', 'no-miembro', 'no-publicado', 'ya-matriculado',
+    'no-gratis', 'cerrada', 'plazo-vencido', 'cupo-lleno',
+  ];
+  // Un motivo que no conocemos no se trata como "puede matricularse": eso
+  // mostraría un botón que la base va a rechazar.
+  return conocidos.includes(valor as EnrollBlocker) ? (valor as EnrollBlocker) : 'no-gratis';
+}
+
+/** Qué se le dice al alumno. null cuando el motivo no le corresponde ver. */
+export function explicarBlocker(
+  blocker: EnrollBlocker,
+  organizationName: string,
+): { titulo: string; detalle: string | null } | null {
+  switch (blocker) {
+    case 'ya-matriculado':
+      return null;
+    case 'cerrada':
+      return {
+        titulo: 'Las inscripciones están cerradas',
+        detalle: `${organizationName} decidirá cuándo reabrirlas. Puedes solicitar tu matrícula igualmente.`,
+      };
+    case 'plazo-vencido':
+      return {
+        titulo: 'El plazo de inscripción venció',
+        detalle: `Aún puedes solicitarla: ${organizationName} resuelve las admisiones fuera de plazo.`,
+      };
+    case 'cupo-lleno':
+      return {
+        titulo: 'El curso completó su cupo',
+        detalle: 'Puedes solicitar tu matrícula y quedar en la lista para el próximo cupo.',
+      };
+    case 'no-gratis':
+      return {
+        titulo: 'Este curso requiere matrícula',
+        detalle: `Solicítala y ${organizationName} te responde.`,
+      };
+    case 'no-publicado':
+    case 'no-existe':
+    case 'no-miembro':
+      // No se detalla: son estados que el alumno no debería alcanzar, y
+      // describirlos revelaría más de lo necesario.
+      return { titulo: 'Este curso no está disponible', detalle: null };
+  }
+}
