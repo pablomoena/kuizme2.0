@@ -60,7 +60,9 @@ function Seccion({ titulo, cursos }: { titulo: string; cursos: CatalogItem[] }) 
                 <span className="text-sm text-ink-muted">{c.subtitle}</span>
               ) : null}
               <span className="ml-auto text-sm text-ink-muted">
-                {c.lessonCount} {c.lessonCount === 1 ? 'lección' : 'lecciones'}
+                {c.enrolled && c.progress && c.progress.total > 0
+                  ? `${c.progress.completed} de ${c.progress.total} · ${c.progress.percent}%`
+                  : `${c.lessonCount} ${c.lessonCount === 1 ? 'lección' : 'lecciones'}`}
               </span>
             </Link>
           </li>

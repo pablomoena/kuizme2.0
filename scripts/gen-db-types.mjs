@@ -133,7 +133,25 @@ lines.push('    };');
 // (comprobado: 4 errores de compilación en la guarda de tipos por cada una).
 // CompositeTypes no la exige, pero se emite para igualar la forma que produce
 // `supabase gen types` y no sorprender a quien compare.
-lines.push('    Views: { [_ in never]: never };');
+// Las vistas de public que authenticated puede leer. Solo Row + Relationships:
+// una vista no actualizable no necesita Insert ni Update, y GenericView los
+// acepta ausentes.
+if ((schema.views ?? []).length === 0) {
+  lines.push('    Views: { [_ in never]: never };');
+} else {
+  lines.push('    Views: {');
+  for (const view of schema.views) {
+    lines.push(`      ${view.name}: {`);
+    lines.push('        Row: {');
+    for (const c of view.columns) {
+      lines.push(`          ${c.name}: ${tsType(c, enumNames)} | null;`);
+    }
+    lines.push('        };');
+    lines.push('        Relationships: [];');
+    lines.push('      };');
+  }
+  lines.push('    };');
+}
 // Las funciones que `authenticated` puede ejecutar, para que rpc() tipe. Qué se
 // puede llamar de verdad lo decide el GRANT, no este tipo.
 if (schema.functions.length === 0) {

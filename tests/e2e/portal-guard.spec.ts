@@ -37,6 +37,7 @@ test.describe('sin sesión', () => {
       '/panel/cursos/cualquier-curso',
       '/cursos',
       '/cursos/cualquier-curso',
+      '/cursos/cualquier-curso/00000000-0000-0000-0000-000000000000',
     ]) {
       const res = await request.get(`${ORIGIN}${ruta}`, asHost('ibmiel.localhost:3000'));
       expect(res.status(), ruta).toBe(307);

@@ -269,7 +269,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          organization_id?: string;
+          organization_id: string;
           exam_id: string;
           student_id: string;
           attempt_number: number;
@@ -461,7 +461,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          organization_id: string;
+          organization_id?: string;
           attempt_id?: string | null;
           answer_id?: string | null;
           changed_by?: string | null;
@@ -585,6 +585,7 @@ export type Database = {
           lesson_id: string;
           student_id: string;
           completed_at: string;
+          course_id: string;
         };
         Insert: {
           id?: string;
@@ -592,6 +593,7 @@ export type Database = {
           lesson_id: string;
           student_id: string;
           completed_at?: string;
+          course_id?: string;
         };
         Update: {
           id?: string;
@@ -599,8 +601,16 @@ export type Database = {
           lesson_id?: string;
           student_id?: string;
           completed_at?: string;
+          course_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'lesson_completions_course_id_fkey';
+            columns: ['course_id'];
+            isOneToOne: false;
+            referencedRelation: 'courses';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'lesson_completions_lesson_id_fkey';
             columns: ['lesson_id'];
@@ -636,8 +646,8 @@ export type Database = {
         };
         Insert: {
           lesson_id: string;
-          organization_id: string;
-          course_id: string;
+          organization_id?: string;
+          course_id?: string;
           body?: string | null;
           video_id?: string | null;
           external_url?: string | null;
@@ -1139,7 +1149,17 @@ export type Database = {
         Relationships: [];
       };
     };
-    Views: { [_ in never]: never };
+    Views: {
+      my_course_progress: {
+        Row: {
+          course_id: string | null;
+          total: number | null;
+          completed: number | null;
+          percent: number | null;
+        };
+        Relationships: [];
+      };
+    };
     Functions: {
       can_study_course: {
         Args: {

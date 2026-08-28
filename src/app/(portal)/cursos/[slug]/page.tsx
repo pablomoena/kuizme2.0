@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { requirePortal } from '@/lib/auth/guard';
 import { getCourseForStudent } from '@/lib/courses/catalog';
 import { Temario } from '@/components/temario';
+import { Progreso } from '@/components/progreso';
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -50,9 +51,10 @@ export default async function CursoAlumnoPage({ params }: Props) {
       {/* El estado se dice explícitamente en vez de dejarlo deducir del temario.
           Quien llega a esta página está decidiendo si le sirve el curso. */}
       {course.enrolled ? (
-        <p className="rounded-md border border-success/30 bg-success/5 px-3 py-2 text-sm">
-          Estás matriculado en este curso.
-        </p>
+        <div className="flex flex-col gap-3 rounded-md border border-success/30 bg-success/5 px-4 py-3">
+          <p className="text-sm">Estás matriculado en este curso.</p>
+          {course.progress ? <Progreso progress={course.progress} /> : null}
+        </div>
       ) : (
         <div className="flex flex-col gap-2 rounded-md border border-line bg-surface-muted px-3 py-3 text-sm">
           <p>
@@ -80,7 +82,7 @@ export default async function CursoAlumnoPage({ params }: Props) {
           </p>
         </div>
 
-        <Temario modules={course.modules} enrolled={course.enrolled} />
+        <Temario modules={course.modules} enrolled={course.enrolled} courseSlug={course.slug} />
       </section>
     </div>
   );

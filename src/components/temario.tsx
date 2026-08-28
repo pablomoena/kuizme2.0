@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { StudentCourse } from '@/lib/courses/catalog';
 
 function duracion(segundos: number | null): string | null {
@@ -9,6 +10,10 @@ function duracion(segundos: number | null): string | null {
 /**
  * El temario que ve el alumno.
  *
+ * Las lecciones legibles enlazan al lector; las cerradas se muestran como texto
+ * con el motivo. Se muestran igual: enseñar el temario completo es el punto de
+ * la página, y lo que no viaja al navegador es el cuerpo.
+ *
  * Cada lección muestra su título siempre, y su contenido solo si llegó de la
  * base. Se usa `readable`, que es "la fila llegó", no una regla reimplementada
  * acá: si la interfaz decidiera por su cuenta quién puede leer qué, tendríamos
@@ -17,7 +22,15 @@ function duracion(segundos: number | null): string | null {
  * Las lecciones cerradas se muestran, no se esconden: enseñar el temario
  * completo es el punto de la página. Lo que no viaja al navegador es el cuerpo.
  */
-export function Temario({ modules, enrolled }: { modules: StudentCourse['modules']; enrolled: boolean }) {
+export function Temario({
+  modules,
+  enrolled,
+  courseSlug,
+}: {
+  modules: StudentCourse['modules'];
+  enrolled: boolean;
+  courseSlug: string;
+}) {
   if (modules.length === 0) {
     return <p className="text-ink-muted">Este curso todavía no tiene contenido publicado.</p>;
   }
@@ -38,20 +51,21 @@ export function Temario({ modules, enrolled }: { modules: StudentCourse['modules
               return (
                 <li key={l.id} className="rounded-md border border-line bg-surface">
                   {l.readable ? (
-                    <details>
-                      <summary className="cursor-pointer px-3 py-2 text-sm">
-                        <span className="font-medium">{l.title}</span>
-                        {l.is_preview && !enrolled ? (
-                          <span className="ml-2 rounded-full border border-success/40 px-2 py-0.5 text-xs text-success">
-                            Muestra gratis
-                          </span>
-                        ) : null}
-                        {min ? <span className="ml-2 text-xs text-ink-muted">{min}</span> : null}
-                      </summary>
-                      <div className="border-t border-line px-3 py-3 text-sm whitespace-pre-wrap">
-                        {l.body ?? <span className="text-ink-muted">Sin contenido todavía.</span>}
-                      </div>
-                    </details>
+                    <Link
+                      href={`/cursos/${courseSlug}/${l.id}`}
+                      className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted"
+                    >
+                      <span className="font-medium">{l.title}</span>
+                      {l.is_preview && !enrolled ? (
+                        <span className="rounded-full border border-success/40 px-2 py-0.5 text-xs text-success">
+                          Muestra gratis
+                        </span>
+                      ) : null}
+                      {min ? <span className="text-xs text-ink-muted">{min}</span> : null}
+                      {l.completed ? (
+                        <span className="ml-auto text-xs text-success">Completada</span>
+                      ) : null}
+                    </Link>
                   ) : (
                     <p className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
                       <span className="text-ink-muted">{l.title}</span>
@@ -59,9 +73,7 @@ export function Temario({ modules, enrolled }: { modules: StudentCourse['modules
                       {l.is_required ? null : (
                         <span className="text-xs text-ink-muted">opcional</span>
                       )}
-                      <span className="ml-auto text-xs text-ink-muted">
-                        Requiere matrícula
-                      </span>
+                      <span className="ml-auto text-xs text-ink-muted">Requiere matrícula</span>
                     </p>
                   )}
                 </li>
