@@ -4,6 +4,17 @@ LMS multi-tenant con módulo de evaluaciones, para instituciones de LATAM.
 Reconstrucción independiente de la v1 (que vive en Lovable y queda congelada como
 el portal de IBMiel).
 
+## Cómo trabajar con Pablo
+
+**Guiar siempre paso a paso.** Nada de "configura los secretos" ni "activa PITR":
+hay que decir dónde hacer clic, qué escribir, qué va a aparecer en pantalla y
+cómo saber si salió bien. Si un paso puede fallar, indicar cuál es el error
+probable y qué hacer con él.
+
+Y no dar por bueno lo que no se verificó: los mensajes de las herramientas
+mienten (ver las dos trampas más abajo). Se comprueba contra la fuente real y se
+reporta el resultado, no la expectativa.
+
 ## Modelo de seguridad — leer antes de tocar datos
 
 Tres capas. La v1 tenía solo la tercera, y por eso un error de política no era un
