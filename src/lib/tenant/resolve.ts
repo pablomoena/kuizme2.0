@@ -25,7 +25,7 @@ export type TenantTarget =
   | { kind: 'tenant'; slug: string }
   /** Portal de un tenant por dominio propio: portal.instituto.cl */
   | { kind: 'custom-domain'; host: string }
-  /** Host que no sabemos resolver. El middleware responde 404, no adivina. */
+  /** Host que no sabemos resolver. El borde responde 404, no adivina. */
   | { kind: 'unknown'; host: string };
 
 /** Quita el puerto y normaliza a minúsculas. */

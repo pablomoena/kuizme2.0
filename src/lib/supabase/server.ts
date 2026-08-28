@@ -25,7 +25,7 @@ export async function createClient() {
           }
         } catch {
           // Los Server Components no pueden escribir cookies. El refresco de
-          // sesión ocurre en el middleware, así que ignorar acá es correcto.
+          // sesión ocurre en el borde (src/proxy.ts), así que ignorar acá es correcto.
         }
       },
     },

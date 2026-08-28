@@ -20,7 +20,7 @@ reporta el resultado, no la expectativa.
 Tres capas. La v1 tenía solo la tercera, y por eso un error de política no era un
 bug sino una brecha de datos.
 
-1. **Borde** (`src/middleware.ts`) — resuelve el tenant desde el hostname y
+1. **Borde** (`src/proxy.ts`) — resuelve el tenant desde el hostname y
    refresca la sesión. Es el único lugar que escribe cookies.
 2. **Servidor** — toda escritura y toda lectura sensible ocurre en Server
    Components o Server Actions, con el token del usuario.

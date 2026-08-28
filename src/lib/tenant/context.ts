@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 import type { TenantTarget } from './resolve';
 
 /**
- * Lee el tenant que el middleware resolvió. Los Server Components usan esto y
+ * Lee el tenant que el borde (src/proxy.ts) resolvió. Los Server Components usan esto y
  * nunca vuelven a mirar el host por su cuenta: una sola fuente de verdad.
  */
 export async function currentTarget(): Promise<TenantTarget> {

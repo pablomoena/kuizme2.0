@@ -5,6 +5,9 @@ import { resolveTenant } from '@/lib/tenant/resolve';
 /**
  * Capa 1 · Borde.
  *
+ * El archivo se llama proxy.ts y no middleware.ts: Next 16 deprecó esa
+ * convención y avisa en cada build. La función exportada se llama `proxy`.
+ *
  * Hace dos cosas antes de que se ejecute cualquier página:
  *   1. Refresca la sesión de Supabase (único lugar donde se escriben cookies).
  *   2. Resuelve el tenant desde el hostname y lo pasa por cabecera interna.
@@ -12,7 +15,7 @@ import { resolveTenant } from '@/lib/tenant/resolve';
  * La organización activa se deriva del host, nunca de la cookie. Una sesión
  * válida en el subdominio de la organización A no puede operar sobre la B.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'localhost';
   const target = resolveTenant(request.headers.get('host'), rootDomain);
 
