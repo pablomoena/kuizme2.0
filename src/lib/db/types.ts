@@ -597,6 +597,104 @@ export type Database = {
           },
         ];
       };
+      integration_secrets: {
+        Row: {
+          integration_id: string;
+          access_token_encrypted: unknown;
+          refresh_token_encrypted: unknown | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          integration_id: string;
+          access_token_encrypted: unknown;
+          refresh_token_encrypted?: unknown | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          integration_id?: string;
+          access_token_encrypted?: unknown;
+          refresh_token_encrypted?: unknown | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'integration_secrets_integration_id_fkey';
+            columns: ['integration_id'];
+            isOneToOne: true;
+            referencedRelation: 'integrations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      integrations: {
+        Row: {
+          id: string;
+          organization_id: string;
+          provider: Database['public']['Enums']['integration_provider'];
+          status: Database['public']['Enums']['integration_status'];
+          account_label: string | null;
+          account_ref: string | null;
+          scopes: string[];
+          expires_at: string | null;
+          connected_at: string | null;
+          connected_by: string | null;
+          last_error: string | null;
+          last_checked_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          provider: Database['public']['Enums']['integration_provider'];
+          status?: Database['public']['Enums']['integration_status'];
+          account_label?: string | null;
+          account_ref?: string | null;
+          scopes?: string[];
+          expires_at?: string | null;
+          connected_at?: string | null;
+          connected_by?: string | null;
+          last_error?: string | null;
+          last_checked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          provider?: Database['public']['Enums']['integration_provider'];
+          status?: Database['public']['Enums']['integration_status'];
+          account_label?: string | null;
+          account_ref?: string | null;
+          scopes?: string[];
+          expires_at?: string | null;
+          connected_at?: string | null;
+          connected_by?: string | null;
+          last_error?: string | null;
+          last_checked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'integrations_connected_by_fkey';
+            columns: ['connected_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'integrations_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       invitations: {
         Row: {
           id: string;
@@ -945,6 +1043,57 @@ export type Database = {
           },
           {
             foreignKeyName: 'modules_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      oauth_states: {
+        Row: {
+          id: string;
+          organization_id: string;
+          provider: Database['public']['Enums']['integration_provider'];
+          state_hash: string;
+          created_by: string;
+          redirect_to: string | null;
+          used_at: string | null;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          provider: Database['public']['Enums']['integration_provider'];
+          state_hash: string;
+          created_by: string;
+          redirect_to?: string | null;
+          used_at?: string | null;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          provider?: Database['public']['Enums']['integration_provider'];
+          state_hash?: string;
+          created_by?: string;
+          redirect_to?: string | null;
+          used_at?: string | null;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'oauth_states_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'oauth_states_organization_id_fkey';
             columns: ['organization_id'];
             isOneToOne: false;
             referencedRelation: 'organizations';
@@ -1365,6 +1514,12 @@ export type Database = {
         };
         Returns: boolean;
       };
+      integration_conectada: {
+        Args: {
+          _provider: Database['public']['Enums']['integration_provider'] | null;
+        };
+        Returns: boolean;
+      };
       is_enrolled_in: {
         Args: {
           _course: string | null;
@@ -1433,6 +1588,8 @@ export type Database = {
       enrollment_request_status: 'pending' | 'approved' | 'rejected' | 'cancelled';
       enrollment_status: 'active' | 'completed' | 'suspended' | 'cancelled';
       exam_status: 'draft' | 'published' | 'archived';
+      integration_provider: 'zoom' | 'mercado_pago' | 'hubspot';
+      integration_status: 'disconnected' | 'connected' | 'expired' | 'revoked' | 'error';
       invitation_status: 'pending' | 'sent' | 'accepted' | 'expired' | 'revoked';
       lesson_kind: 'video' | 'text' | 'file' | 'audio' | 'embed' | 'live' | 'exam';
       org_role: 'org_admin' | 'instructor' | 'student';
@@ -1441,6 +1598,26 @@ export type Database = {
       pricing_kind: 'free' | 'one_time' | 'subscription';
       question_kind: 'multiple_choice' | 'multiple_selection' | 'true_false' | 'short_answer' | 'fill_blank' | 'matching' | 'ordering' | 'numeric' | 'essay';
     };
+  };
+};
+
+/** Tablas que ningún rol de usuario alcanza: solo service_role. */
+export type TablasDeServidor =
+  'integration_secrets'
+  | 'oauth_states'
+  | 'question_keys'
+  | 'reserved_slugs';
+
+/**
+ * El esquema tal como lo ve un cliente con sesión de usuario.
+ *
+ * Sin las tablas de servidor: pedirlas desde acá no compila. Es la misma idea
+ * que el doble candado de la base (RLS sin políticas + sin GRANT), una capa más
+ * arriba y en tiempo de compilación.
+ */
+export type DatabaseUsuario = {
+  public: Omit<Database['public'], 'Tables'> & {
+    Tables: Omit<Database['public']['Tables'], TablasDeServidor>;
   };
 };
 

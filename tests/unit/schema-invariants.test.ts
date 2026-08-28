@@ -170,6 +170,46 @@ describe('invariantes del esquema', () => {
     }
   });
 
+  it('D14: los secretos de las integraciones no tienen ninguna política', () => {
+    // El agujero de la v1 es literalmente una política:
+    //   CREATE POLICY ... ON organization_secrets FOR ALL
+    //   USING (has_role(auth.uid(), 'super_admin', organization_id))
+    // `FOR ALL` incluye SELECT y RLS filtra filas, no columnas. Acá la garantía
+    // es que NO exista política, así que se afirma sobre el texto: una política
+    // añadida "para que el admin pueda ver el estado" reabriría el agujero, y el
+    // estado ya se ve en `integrations`, que es otra tabla.
+    expect(sql).toMatch(/create table integration_secrets/);
+    expect(sql).not.toMatch(/create policy \w+ on integration_secrets/);
+    expect(sql).not.toMatch(/create policy \w+ on oauth_states/);
+  });
+
+  it('D14: y tampoco GRANT para roles de usuario', () => {
+    // Supabase concede toda tabla nueva a authenticated por default privileges,
+    // así que "no dar el grant" no basta: hay que quitarlo.
+    expect(sql).toMatch(/revoke all on integration_secrets from anon, authenticated/);
+    expect(sql).toMatch(/revoke all on oauth_states\s+from anon, authenticated/);
+  });
+
+  it('D14: nadie más que el servidor escribe el estado de una integración', () => {
+    // Si un administrador pudiera hacer UPDATE, pondría status='connected' sin
+    // conexión y la pantalla mostraría una integración activa que no funciona.
+    expect(sql).toMatch(/revoke insert, update, delete on integrations from anon, authenticated/);
+    expect(sql).not.toMatch(/create policy \w+ on integrations for (all|insert|update|delete)/);
+  });
+
+  it('D14: el state de OAuth se consume por su hash, no por "el más reciente"', () => {
+    // El callback de la v1, si falta el state, toma el más reciente sin usar de
+    // los últimos 10 minutos SIN filtrar por organización.
+    const fn = sql.match(/create or replace function consume_oauth_state[\s\S]*?\$\$;/)?.[0] ?? '';
+    expect(fn).toMatch(/state_hash = _hash/);
+    expect(fn).toMatch(/used_at\s+is null/);
+    expect(fn).toMatch(/expires_at > now\(\)/);
+    // Y una sola sentencia: comprobar y después marcar deja pasar a dos callbacks
+    // simultáneos. tests/db/race-oauth-state.sh lo comprueba con dos conexiones.
+    expect(fn).toMatch(/update oauth_states[\s\S]*returning/);
+    expect(fn).not.toMatch(/order by[\s\S]*limit 1/);
+  });
+
   it('toda función SECURITY DEFINER fija search_path', () => {
     const fns = sql.match(/create or replace function[\s\S]*?\$\$/g) ?? [];
     const definers = fns.filter((f) => /security definer/i.test(f));

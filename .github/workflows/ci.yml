@@ -138,11 +138,26 @@ jobs:
       - name: Secciones y liberación por módulo
         run: $PSQL -f tests/db/secciones.sql
 
+      # D14 · Que los tokens de las integraciones NO se puedan alcanzar. La v1 sí
+      # los deja leer: `select zoom_refresh_token from organization_secrets` con
+      # una sesión de super_admin funciona, porque hay política y hay GRANT. Cada
+      # camino se intenta de verdad acá.
+      - name: Integraciones por tenant
+        run: $PSQL -f tests/db/integraciones.sql
+
       # La carrera del cupo necesita DOS conexiones solapadas, así que no cabe en
       # un archivo .sql. Sin el `for update` del trigger, entran dos alumnos en un
       # cupo de uno — verificado quitándolo.
       - name: Carrera del cupo
         run: ./tests/db/race-cupo.sh
+        env:
+          PGPASSWORD: kuizme
+
+      # Y el state de OAuth: si el mismo llega dos veces, la segunda llamada
+      # sobrescribiría la conexión de la primera con otros tokens. Consumir en dos
+      # pasos —comprobar y después marcar— deja pasar a las dos; verificado.
+      - name: Carrera del state de OAuth
+        run: ./tests/db/race-oauth-state.sh
         env:
           PGPASSWORD: kuizme
 

@@ -42,6 +42,13 @@ export function PortalNav({
               </Link>
             </>
           ) : null}
+          {/* Integraciones solo para el administrador: conectar la cuenta de la
+              institución no es parte de editar contenido. */}
+          {role === 'org_admin' || role === 'platform_admin' ? (
+            <Link href="/panel/integraciones" className="text-ink-muted hover:text-ink">
+              Integraciones
+            </Link>
+          ) : null}
         </nav>
 
         <div className="ml-auto flex items-center gap-3 text-sm">

@@ -150,3 +150,20 @@ export async function requireStaff(): Promise<PortalSession> {
   if (session.role === 'student') redirect('/sin-acceso?motivo=solo-staff');
   return session;
 }
+
+/**
+ * Exige ser administrador de la organización (o de la plataforma).
+ *
+ * Distinto de requireStaff: un instructor edita contenido pero no conecta la
+ * cuenta de Zoom del instituto ni ve con qué correo quedó conectada. Es la misma
+ * frontera que la política de lectura de `integrations` (D14) — y por eso ésta se
+ * apoya en la base y no la reemplaza: si esta comprobación se olvidara en una
+ * página nueva, RLS seguiría devolviendo cero filas.
+ */
+export async function requireOrgAdmin(): Promise<PortalSession> {
+  const session = await requirePortal();
+  if (session.role !== 'org_admin' && session.role !== 'platform_admin') {
+    redirect('/sin-acceso?motivo=solo-admin');
+  }
+  return session;
+}

@@ -197,6 +197,39 @@ lines.push('    };');
 lines.push('  };');
 lines.push('};');
 lines.push('');
+// ── Dos esquemas, no uno ───────────────────────────────────────────────────
+// `Database` lo tiene todo, porque el cliente de service_role escribe en las
+// tablas que ningún usuario alcanza (question_keys, integration_secrets).
+// `DatabaseUsuario` quita esas tablas, y es el que usan los clientes que llevan
+// la sesión de un usuario. Así una consulta del cliente a una tabla de servidor
+// NO COMPILA, en vez de fallar en tiempo de ejecución con "permission denied"
+// —o peor, de pasar inadvertida porque nadie mira ese log—.
+//
+// La lista se deriva de la base: sale de qué tablas `authenticated` no puede
+// leer. Una tabla de servidor nueva queda cubierta sin que nadie se acuerde.
+const soloServidor = schema.tables.filter((t) => t.serverOnly).map((t) => t.name);
+lines.push('/** Tablas que ningún rol de usuario alcanza: solo service_role. */');
+if (soloServidor.length === 0) {
+  lines.push('export type TablasDeServidor = never;');
+} else {
+  lines.push(
+    `export type TablasDeServidor =\n  ${soloServidor.map((n) => `'${n}'`).join('\n  | ')};`,
+  );
+}
+lines.push('');
+lines.push('/**');
+lines.push(' * El esquema tal como lo ve un cliente con sesión de usuario.');
+lines.push(' *');
+lines.push(' * Sin las tablas de servidor: pedirlas desde acá no compila. Es la misma idea');
+lines.push(' * que el doble candado de la base (RLS sin políticas + sin GRANT), una capa más');
+lines.push(' * arriba y en tiempo de compilación.');
+lines.push(' */');
+lines.push('export type DatabaseUsuario = {');
+lines.push('  public: Omit<Database[\'public\'], \'Tables\'> & {');
+lines.push('    Tables: Omit<Database[\'public\'][\'Tables\'], TablasDeServidor>;');
+lines.push('  };');
+lines.push('};');
+lines.push('');
 lines.push('/** Atajos: Row<\'courses\'>, Insert<\'lessons\'>, Enum<\'org_role\'>. */');
 lines.push("export type Tables = Database['public']['Tables'];");
 lines.push('export type Row<T extends keyof Tables> = Tables[T][\'Row\'];');
