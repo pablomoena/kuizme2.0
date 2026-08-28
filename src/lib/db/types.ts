@@ -597,6 +597,104 @@ export type Database = {
           },
         ];
       };
+      integration_secrets: {
+        Row: {
+          integration_id: string;
+          access_token_encrypted: unknown;
+          refresh_token_encrypted: unknown | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          integration_id: string;
+          access_token_encrypted: unknown;
+          refresh_token_encrypted?: unknown | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          integration_id?: string;
+          access_token_encrypted?: unknown;
+          refresh_token_encrypted?: unknown | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'integration_secrets_integration_id_fkey';
+            columns: ['integration_id'];
+            isOneToOne: true;
+            referencedRelation: 'integrations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      integrations: {
+        Row: {
+          id: string;
+          organization_id: string;
+          provider: Database['public']['Enums']['integration_provider'];
+          status: Database['public']['Enums']['integration_status'];
+          account_label: string | null;
+          account_ref: string | null;
+          scopes: string[];
+          expires_at: string | null;
+          connected_at: string | null;
+          connected_by: string | null;
+          last_error: string | null;
+          last_checked_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          provider: Database['public']['Enums']['integration_provider'];
+          status?: Database['public']['Enums']['integration_status'];
+          account_label?: string | null;
+          account_ref?: string | null;
+          scopes?: string[];
+          expires_at?: string | null;
+          connected_at?: string | null;
+          connected_by?: string | null;
+          last_error?: string | null;
+          last_checked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          provider?: Database['public']['Enums']['integration_provider'];
+          status?: Database['public']['Enums']['integration_status'];
+          account_label?: string | null;
+          account_ref?: string | null;
+          scopes?: string[];
+          expires_at?: string | null;
+          connected_at?: string | null;
+          connected_by?: string | null;
+          last_error?: string | null;
+          last_checked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'integrations_connected_by_fkey';
+            columns: ['connected_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'integrations_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       invitations: {
         Row: {
           id: string;
@@ -786,6 +884,7 @@ export type Database = {
           exam_id: string | null;
           course_id: string;
           is_preview: boolean;
+          section_id: string | null;
         };
         Insert: {
           id?: string;
@@ -803,6 +902,7 @@ export type Database = {
           exam_id?: string | null;
           course_id?: string;
           is_preview?: boolean;
+          section_id?: string | null;
         };
         Update: {
           id?: string;
@@ -820,6 +920,7 @@ export type Database = {
           exam_id?: string | null;
           course_id?: string;
           is_preview?: boolean;
+          section_id?: string | null;
         };
         Relationships: [
           {
@@ -848,6 +949,13 @@ export type Database = {
             columns: ['organization_id'];
             isOneToOne: false;
             referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'lessons_section_id_fkey';
+            columns: ['section_id'];
+            isOneToOne: false;
+            referencedRelation: 'sections';
             referencedColumns: ['id'];
           },
         ];
@@ -898,6 +1006,8 @@ export type Database = {
           order_index: number;
           created_at: string;
           updated_at: string;
+          unlock_after_days: number | null;
+          unlock_at: string | null;
         };
         Insert: {
           id?: string;
@@ -908,6 +1018,8 @@ export type Database = {
           order_index?: number;
           created_at?: string;
           updated_at?: string;
+          unlock_after_days?: number | null;
+          unlock_at?: string | null;
         };
         Update: {
           id?: string;
@@ -918,6 +1030,8 @@ export type Database = {
           order_index?: number;
           created_at?: string;
           updated_at?: string;
+          unlock_after_days?: number | null;
+          unlock_at?: string | null;
         };
         Relationships: [
           {
@@ -929,6 +1043,57 @@ export type Database = {
           },
           {
             foreignKeyName: 'modules_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      oauth_states: {
+        Row: {
+          id: string;
+          organization_id: string;
+          provider: Database['public']['Enums']['integration_provider'];
+          state_hash: string;
+          created_by: string;
+          redirect_to: string | null;
+          used_at: string | null;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          provider: Database['public']['Enums']['integration_provider'];
+          state_hash: string;
+          created_by: string;
+          redirect_to?: string | null;
+          used_at?: string | null;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          provider?: Database['public']['Enums']['integration_provider'];
+          state_hash?: string;
+          created_by?: string;
+          redirect_to?: string | null;
+          used_at?: string | null;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'oauth_states_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'oauth_states_organization_id_fkey';
             columns: ['organization_id'];
             isOneToOne: false;
             referencedRelation: 'organizations';
@@ -1231,6 +1396,64 @@ export type Database = {
         };
         Relationships: [];
       };
+      sections: {
+        Row: {
+          id: string;
+          organization_id: string;
+          course_id: string;
+          module_id: string;
+          title: string;
+          description: string | null;
+          order_index: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string;
+          course_id?: string;
+          module_id: string;
+          title: string;
+          description?: string | null;
+          order_index?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          course_id?: string;
+          module_id?: string;
+          title?: string;
+          description?: string | null;
+          order_index?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'sections_course_id_fkey';
+            columns: ['course_id'];
+            isOneToOne: false;
+            referencedRelation: 'courses';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sections_module_id_fkey';
+            columns: ['module_id'];
+            isOneToOne: false;
+            referencedRelation: 'modules';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sections_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       my_course_progress: {
@@ -1256,50 +1479,56 @@ export type Database = {
     Functions: {
       approve_enrollment_request: {
         Args: {
-          _request: string;
+          _request: string | null;
         };
         Returns: string;
       };
       can_open_lesson: {
         Args: {
-          _lesson: string;
+          _lesson: string | null;
         };
         Returns: boolean;
       };
       can_self_enroll: {
         Args: {
-          _course: string;
+          _course: string | null;
         };
         Returns: boolean;
       };
       can_study_course: {
         Args: {
-          _course: string;
+          _course: string | null;
         };
         Returns: boolean;
       };
       can_view_course: {
         Args: {
-          _course: string;
+          _course: string | null;
         };
         Returns: boolean;
       };
       has_org_role: {
         Args: {
-          _org: string;
-          _roles: Database['public']['Enums']['org_role'][];
+          _org: string | null;
+          _roles: Database['public']['Enums']['org_role'][] | null;
+        };
+        Returns: boolean;
+      };
+      integration_conectada: {
+        Args: {
+          _provider: Database['public']['Enums']['integration_provider'] | null;
         };
         Returns: boolean;
       };
       is_enrolled_in: {
         Args: {
-          _course: string;
+          _course: string | null;
         };
         Returns: boolean;
       };
       is_member_of: {
         Args: {
-          _org: string;
+          _org: string | null;
         };
         Returns: boolean;
       };
@@ -1309,31 +1538,45 @@ export type Database = {
       };
       move_lesson: {
         Args: {
-          _lesson: string;
-          _target_module: string;
-          _position: number;
+          _lesson: string | null;
+          _target_module: string | null;
+          _position: number | null;
         };
         Returns: number;
       };
       reorder_lessons: {
         Args: {
-          _module: string;
-          _ids: string[];
+          _module: string | null;
+          _ids: string[] | null;
         };
         Returns: number;
       };
       reorder_modules: {
         Args: {
-          _course: string;
-          _ids: string[];
+          _course: string | null;
+          _ids: string[] | null;
+        };
+        Returns: number;
+      };
+      reorder_sections: {
+        Args: {
+          _module: string | null;
+          _ids: string[] | null;
         };
         Returns: number;
       };
       self_enroll_blocker: {
         Args: {
-          _course: string;
+          _course: string | null;
         };
         Returns: string;
+      };
+      set_lesson_section: {
+        Args: {
+          _lesson: string | null;
+          _section: string | null;
+        };
+        Returns: undefined;
       };
     };
     CompositeTypes: { [_ in never]: never };
@@ -1345,6 +1588,8 @@ export type Database = {
       enrollment_request_status: 'pending' | 'approved' | 'rejected' | 'cancelled';
       enrollment_status: 'active' | 'completed' | 'suspended' | 'cancelled';
       exam_status: 'draft' | 'published' | 'archived';
+      integration_provider: 'zoom' | 'mercado_pago' | 'hubspot';
+      integration_status: 'disconnected' | 'connected' | 'expired' | 'revoked' | 'error';
       invitation_status: 'pending' | 'sent' | 'accepted' | 'expired' | 'revoked';
       lesson_kind: 'video' | 'text' | 'file' | 'audio' | 'embed' | 'live' | 'exam';
       org_role: 'org_admin' | 'instructor' | 'student';
@@ -1353,6 +1598,26 @@ export type Database = {
       pricing_kind: 'free' | 'one_time' | 'subscription';
       question_kind: 'multiple_choice' | 'multiple_selection' | 'true_false' | 'short_answer' | 'fill_blank' | 'matching' | 'ordering' | 'numeric' | 'essay';
     };
+  };
+};
+
+/** Tablas que ningún rol de usuario alcanza: solo service_role. */
+export type TablasDeServidor =
+  'integration_secrets'
+  | 'oauth_states'
+  | 'question_keys'
+  | 'reserved_slugs';
+
+/**
+ * El esquema tal como lo ve un cliente con sesión de usuario.
+ *
+ * Sin las tablas de servidor: pedirlas desde acá no compila. Es la misma idea
+ * que el doble candado de la base (RLS sin políticas + sin GRANT), una capa más
+ * arriba y en tiempo de compilación.
+ */
+export type DatabaseUsuario = {
+  public: Omit<Database['public'], 'Tables'> & {
+    Tables: Omit<Database['public']['Tables'], TablasDeServidor>;
   };
 };
 

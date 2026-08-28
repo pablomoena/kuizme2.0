@@ -32,15 +32,31 @@ export const MODOS: { valor: ReleaseMode; titulo: string; detalle: string }[] = 
   },
 ];
 
-/** Motivos que devuelve la vista my_lesson_availability. */
-export type Reason = 'abierta' | 'sin-matricula' | 'fecha' | 'dias' | 'secuencia';
+/**
+ * Motivos que devuelve la vista my_lesson_availability.
+ *
+ * D13 separa el bloqueo del MÓDULO del de la lección. No es un detalle cosmético:
+ * "se abre el 15" dicho de una lección suelta invita a esperar esa lección,
+ * cuando lo que falta es que abra la semana entera. Saberlo cambia qué hace el
+ * alumno con la información.
+ */
+export type Reason =
+  | 'abierta'
+  | 'sin-matricula'
+  | 'fecha'
+  | 'fecha-modulo'
+  | 'dias'
+  | 'dias-modulo'
+  | 'secuencia';
 
 export function esReason(valor: string | null): Reason {
   switch (valor) {
     case 'abierta':
     case 'sin-matricula':
     case 'fecha':
+    case 'fecha-modulo':
     case 'dias':
+    case 'dias-modulo':
     case 'secuencia':
       return valor;
     default:
@@ -74,11 +90,19 @@ export function explicarBloqueo(
       return 'Requiere matrícula';
     case 'fecha':
       return opensAt ? `Se abre el ${FECHA.format(opensAt)}` : 'Se abre más adelante';
-    case 'dias': {
-      if (!opensAt) return 'Se abre más adelante';
+    case 'fecha-modulo':
+      // Se nombra el módulo para que el alumno no espere esta lección en
+      // particular: lo que falta es que abra el módulo completo.
+      return opensAt
+        ? `El módulo se abre el ${FECHA.format(opensAt)}`
+        : 'El módulo se abre más adelante';
+    case 'dias':
+    case 'dias-modulo': {
+      const prefijo = reason === 'dias-modulo' ? 'El módulo se abre' : 'Se abre';
+      if (!opensAt) return `${prefijo} más adelante`;
       const dias = diasHasta(opensAt, ahora);
-      if (dias === 0) return 'Se abre hoy';
-      return dias === 1 ? 'Se abre mañana' : `Se abre en ${dias} días`;
+      if (dias === 0) return `${prefijo} hoy`;
+      return dias === 1 ? `${prefijo} mañana` : `${prefijo} en ${dias} días`;
     }
     case 'secuencia':
       return 'Completa la lección anterior';

@@ -74,6 +74,11 @@ export type CourseDetail = {
     title: string;
     description: string | null;
     order_index: number;
+    /** D13: el módulo libera, y actúa como suelo de sus lecciones. */
+    unlock_at: string | null;
+    unlock_after_days: number | null;
+    /** D13: agrupación dentro del módulo. Puede estar vacía. */
+    sections: { id: string; title: string; order_index: number }[];
     lessons: {
       id: string;
       title: string;
@@ -82,6 +87,8 @@ export type CourseDetail = {
       is_required: boolean;
       /** D8: su contenido se lee sin matrícula. La lección de muestra. */
       is_preview: boolean;
+      /** D13: null = cuelga del módulo directo. */
+      section_id: string | null;
       unlock_at: string | null;
       unlock_after_days: number | null;
     }[];
@@ -99,8 +106,9 @@ export async function getCourse(
     .select(
       `id, slug, title, subtitle, description, status, visibility, release_mode, sequential,
        enrollment_open, enrollment_deadline, max_students,
-       modules(id, title, description, order_index,
-               lessons(id, title, kind, order_index, is_required, is_preview,
+       modules(id, title, description, order_index, unlock_at, unlock_after_days,
+               sections(id, title, order_index),
+               lessons(id, title, kind, order_index, is_required, is_preview, section_id,
                        unlock_at, unlock_after_days))`,
     )
     .eq('organization_id', organizationId)
@@ -123,6 +131,12 @@ export async function getCourse(
     .sort((a, b) => a.order_index - b.order_index || a.title.localeCompare(b.title, 'es'))
     .map((m) => ({
       ...m,
+      // Las secciones se ordenan acá y no en la vista: agrupar() las reordena
+      // igual, pero dejarlas ordenadas hace que el <select> de asignación y el
+      // árbol muestren la misma lista.
+      sections: [...m.sections].sort(
+        (a, b) => a.order_index - b.order_index || a.title.localeCompare(b.title, 'es'),
+      ),
       lessons: [...m.lessons].sort(
         (a, b) => a.order_index - b.order_index || a.title.localeCompare(b.title, 'es'),
       ),

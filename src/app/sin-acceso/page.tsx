@@ -24,6 +24,11 @@ const MOTIVOS: Record<string, { titulo: string; detalle: string }> = {
     titulo: 'Esta sección es para el equipo docente',
     detalle: 'Tu cuenta es de alumno. Desde el panel puedes ver tus cursos y tus evaluaciones.',
   },
+  'solo-admin': {
+    titulo: 'Esta sección es para quien administra la institución',
+    detalle:
+      'Conectar las cuentas de la institución con otros servicios es una tarea administrativa. Si necesitas una integración nueva, pídesela a quien administra.',
+  },
 };
 
 const POR_DEFECTO = {

@@ -22,7 +22,7 @@
  * de las tres. No hay nada que ejecutar: el chequeo es `npm run typecheck`.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/lib/db/types';
+import type { Database, DatabaseUsuario } from '@/lib/db/types';
 
 type Client = SupabaseClient<Database>;
 
@@ -83,3 +83,41 @@ export type _EveryTableHasRelationships = Assert<
     : false
 >;
 /* eslint-enable @typescript-eslint/no-unused-vars */
+
+/**
+ * D14 · Las tablas de servidor no existen para un cliente de usuario.
+ *
+ * `DatabaseUsuario` quita las tablas que ningún rol de usuario alcanza
+ * (question_keys, reserved_slugs, integration_secrets, oauth_states). Sin esto,
+ * una consulta del cliente compilaba y fallaba en tiempo de ejecución con
+ * "permission denied" — o pasaba inadvertida, porque nadie mira ese log.
+ *
+ * Es la misma idea que el doble candado de la base, una capa más arriba: RLS sin
+ * políticas y sin GRANT lo impiden al ejecutar; esto lo impide al compilar.
+ */
+type ClienteUsuario = SupabaseClient<DatabaseUsuario>;
+type TablasDelUsuario = keyof DatabaseUsuario['public']['Tables'];
+
+// Las que el usuario SÍ tiene.
+export type _usuario_ve_courses = Assert<'courses' extends TablasDelUsuario ? true : false>;
+export type _usuario_ve_integrations =
+  Assert<'integrations' extends TablasDelUsuario ? true : false>;
+
+// Y las que NO. Si alguna reapareciera, estas afirmaciones fallan la compilación.
+export type _sin_secretos =
+  Assert<'integration_secrets' extends TablasDelUsuario ? false : true>;
+export type _sin_states = Assert<'oauth_states' extends TablasDelUsuario ? false : true>;
+export type _sin_claves = Assert<'question_keys' extends TablasDelUsuario ? false : true>;
+export type _sin_slugs = Assert<'reserved_slugs' extends TablasDelUsuario ? false : true>;
+
+// El cliente de servidor sí las tiene: es el que escribe los tokens.
+export type _admin_ve_secretos =
+  Assert<'integration_secrets' extends keyof Database['public']['Tables'] ? true : false>;
+
+// Y las consultas del usuario siguen infiriendo bien con el esquema recortado:
+// quitar tablas no puede romper la inferencia de las que quedan.
+declare const dbUsuario: ClienteUsuario;
+/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+const integracion = dbUsuario.from('integrations').select('status, account_label').maybeSingle();
+export type _integracion_infiere = Assert<Resolves<typeof integracion extends
+  PromiseLike<{ data: infer D }> ? D : never>>;

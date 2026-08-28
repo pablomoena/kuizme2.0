@@ -85,6 +85,8 @@ export type StudentLesson = {
   is_required: boolean;
   is_preview: boolean;
   duration_seconds: number | null;
+  /** D13: null = cuelga del módulo directo. */
+  section_id: string | null;
   /** El cuerpo, si este usuario puede leerlo. RLS decide; acá solo se refleja. */
   body: string | null;
   /** true si el contenido llegó: la puerta de la base lo decidió, no la interfaz. */
@@ -110,7 +112,18 @@ export type StudentCourse = {
     | { via: 'solicitud'; pendiente: { id: string } | null; motivo: EnrollBlocker | null }
     | { via: 'ninguna' };
   precio: { kind: Enum<'pricing_kind'>; amountCents: number | null; currency: string } | null;
-  modules: { id: string; title: string; description: string | null; lessons: StudentLesson[] }[];
+  modules: {
+    id: string;
+    title: string;
+    description: string | null;
+    /**
+     * D13: agrupación. Vacía en un módulo sin secciones, que es lo normal.
+     * Sin order_index: la sección se ve donde están sus lecciones, así que su
+     * índice propio no influye en el temario. En el editor sí, y ahí se pide.
+     */
+    sections: { id: string; title: string }[];
+    lessons: StudentLesson[];
+  }[];
 };
 
 export async function getCourseForStudent(
@@ -125,7 +138,9 @@ export async function getCourseForStudent(
     .select(
       `id, slug, title, subtitle, description,
        modules(id, title, description, order_index,
-               lessons(id, title, kind, order_index, is_required, is_preview, duration_seconds))`,
+               sections(id, title),
+               lessons(id, title, kind, order_index, is_required, is_preview, duration_seconds,
+                       section_id))`,
     )
     .eq('organization_id', organizationId)
     .eq('slug', slug)
@@ -200,6 +215,7 @@ export async function getCourseForStudent(
       id: m.id,
       title: m.title,
       description: m.description,
+      sections: m.sections,
       lessons: [...m.lessons]
         .sort((a, b) => a.order_index - b.order_index)
         .map((l) => ({
@@ -209,6 +225,7 @@ export async function getCourseForStudent(
           is_required: l.is_required,
           is_preview: l.is_preview,
           duration_seconds: l.duration_seconds,
+          section_id: l.section_id,
           body: cuerpo.get(l.id) ?? null,
           readable: cuerpo.has(l.id),
           completed: hechas.has(l.id),

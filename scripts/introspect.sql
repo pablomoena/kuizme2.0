@@ -74,7 +74,12 @@ select json_build_object(
       'name', c.relname,
       'columns', cols.list,
       'derived', derived.list,
-      'relationships', rels.list
+      'relationships', rels.list,
+      -- Las tablas que `authenticated` NO puede leer no son del cliente: son de
+      -- question_keys (D3) e integration_secrets (D14). Se siguen emitiendo
+      -- porque el cliente de service_role las necesita tipadas, pero se marcan
+      -- para poder excluirlas del tipo que usan los clientes de usuario.
+      'serverOnly', not has_table_privilege('authenticated', c.oid, 'SELECT')
     ) order by c.relname), '[]'::json)
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
