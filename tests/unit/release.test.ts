@@ -12,7 +12,15 @@ const ahora = new Date('2026-09-01T12:00:00Z');
 
 describe('esReason', () => {
   it('acepta los motivos que devuelve la vista', () => {
-    for (const r of ['abierta', 'sin-matricula', 'fecha', 'dias', 'secuencia'] as const) {
+    for (const r of [
+      'abierta',
+      'sin-matricula',
+      'fecha',
+      'fecha-modulo',
+      'dias',
+      'dias-modulo',
+      'secuencia',
+    ] as const) {
       expect(esReason(r)).toBe(r);
     }
   });
@@ -63,6 +71,29 @@ describe('explicarBloqueo', () => {
 
   it('una lección abierta no lleva explicación', () => {
     expect(explicarBloqueo('abierta', null, ahora)).toBe('');
+  });
+
+  it('distingue el bloqueo del módulo del de la lección (D13)', () => {
+    // No es cosmético: "se abre el 15" dicho de una lección invita a esperar esa
+    // lección, cuando lo que falta es que abra el módulo entero. El alumno hace
+    // algo distinto con cada frase.
+    expect(explicarBloqueo('fecha-modulo', new Date('2026-09-15T12:00:00Z'), ahora)).toBe(
+      'El módulo se abre el 15 de septiembre',
+    );
+    expect(explicarBloqueo('dias-modulo', new Date('2026-09-08T12:00:00Z'), ahora)).toBe(
+      'El módulo se abre en 7 días',
+    );
+    expect(explicarBloqueo('dias-modulo', new Date('2026-09-02T12:00:00Z'), ahora)).toBe(
+      'El módulo se abre mañana',
+    );
+    expect(explicarBloqueo('dias-modulo', new Date('2026-09-01T10:00:00Z'), ahora)).toBe(
+      'El módulo se abre hoy',
+    );
+  });
+
+  it('sin fecha, el bloqueo del módulo tampoco se queda en "no disponible"', () => {
+    expect(explicarBloqueo('fecha-modulo', null, ahora)).toBe('El módulo se abre más adelante');
+    expect(explicarBloqueo('dias-modulo', null, ahora)).toBe('El módulo se abre más adelante');
   });
 });
 

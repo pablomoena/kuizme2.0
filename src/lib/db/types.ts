@@ -786,6 +786,7 @@ export type Database = {
           exam_id: string | null;
           course_id: string;
           is_preview: boolean;
+          section_id: string | null;
         };
         Insert: {
           id?: string;
@@ -803,6 +804,7 @@ export type Database = {
           exam_id?: string | null;
           course_id?: string;
           is_preview?: boolean;
+          section_id?: string | null;
         };
         Update: {
           id?: string;
@@ -820,6 +822,7 @@ export type Database = {
           exam_id?: string | null;
           course_id?: string;
           is_preview?: boolean;
+          section_id?: string | null;
         };
         Relationships: [
           {
@@ -848,6 +851,13 @@ export type Database = {
             columns: ['organization_id'];
             isOneToOne: false;
             referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'lessons_section_id_fkey';
+            columns: ['section_id'];
+            isOneToOne: false;
+            referencedRelation: 'sections';
             referencedColumns: ['id'];
           },
         ];
@@ -898,6 +908,8 @@ export type Database = {
           order_index: number;
           created_at: string;
           updated_at: string;
+          unlock_after_days: number | null;
+          unlock_at: string | null;
         };
         Insert: {
           id?: string;
@@ -908,6 +920,8 @@ export type Database = {
           order_index?: number;
           created_at?: string;
           updated_at?: string;
+          unlock_after_days?: number | null;
+          unlock_at?: string | null;
         };
         Update: {
           id?: string;
@@ -918,6 +932,8 @@ export type Database = {
           order_index?: number;
           created_at?: string;
           updated_at?: string;
+          unlock_after_days?: number | null;
+          unlock_at?: string | null;
         };
         Relationships: [
           {
@@ -1231,6 +1247,64 @@ export type Database = {
         };
         Relationships: [];
       };
+      sections: {
+        Row: {
+          id: string;
+          organization_id: string;
+          course_id: string;
+          module_id: string;
+          title: string;
+          description: string | null;
+          order_index: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string;
+          course_id?: string;
+          module_id: string;
+          title: string;
+          description?: string | null;
+          order_index?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          course_id?: string;
+          module_id?: string;
+          title?: string;
+          description?: string | null;
+          order_index?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'sections_course_id_fkey';
+            columns: ['course_id'];
+            isOneToOne: false;
+            referencedRelation: 'courses';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sections_module_id_fkey';
+            columns: ['module_id'];
+            isOneToOne: false;
+            referencedRelation: 'modules';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'sections_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       my_course_progress: {
@@ -1256,50 +1330,50 @@ export type Database = {
     Functions: {
       approve_enrollment_request: {
         Args: {
-          _request: string;
+          _request: string | null;
         };
         Returns: string;
       };
       can_open_lesson: {
         Args: {
-          _lesson: string;
+          _lesson: string | null;
         };
         Returns: boolean;
       };
       can_self_enroll: {
         Args: {
-          _course: string;
+          _course: string | null;
         };
         Returns: boolean;
       };
       can_study_course: {
         Args: {
-          _course: string;
+          _course: string | null;
         };
         Returns: boolean;
       };
       can_view_course: {
         Args: {
-          _course: string;
+          _course: string | null;
         };
         Returns: boolean;
       };
       has_org_role: {
         Args: {
-          _org: string;
-          _roles: Database['public']['Enums']['org_role'][];
+          _org: string | null;
+          _roles: Database['public']['Enums']['org_role'][] | null;
         };
         Returns: boolean;
       };
       is_enrolled_in: {
         Args: {
-          _course: string;
+          _course: string | null;
         };
         Returns: boolean;
       };
       is_member_of: {
         Args: {
-          _org: string;
+          _org: string | null;
         };
         Returns: boolean;
       };
@@ -1309,31 +1383,45 @@ export type Database = {
       };
       move_lesson: {
         Args: {
-          _lesson: string;
-          _target_module: string;
-          _position: number;
+          _lesson: string | null;
+          _target_module: string | null;
+          _position: number | null;
         };
         Returns: number;
       };
       reorder_lessons: {
         Args: {
-          _module: string;
-          _ids: string[];
+          _module: string | null;
+          _ids: string[] | null;
         };
         Returns: number;
       };
       reorder_modules: {
         Args: {
-          _course: string;
-          _ids: string[];
+          _course: string | null;
+          _ids: string[] | null;
+        };
+        Returns: number;
+      };
+      reorder_sections: {
+        Args: {
+          _module: string | null;
+          _ids: string[] | null;
         };
         Returns: number;
       };
       self_enroll_blocker: {
         Args: {
-          _course: string;
+          _course: string | null;
         };
         Returns: string;
+      };
+      set_lesson_section: {
+        Args: {
+          _lesson: string | null;
+          _section: string | null;
+        };
+        Returns: undefined;
       };
     };
     CompositeTypes: { [_ in never]: never };

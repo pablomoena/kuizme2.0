@@ -148,6 +148,28 @@ describe('invariantes del esquema', () => {
     expect(sql).toMatch(/no force row level security/);
   });
 
+  it('D13: borrar una sección no borra sus lecciones', () => {
+    // `on delete cascade` acá convertiría "quitar un título" en "borrar la
+    // semana entera". El comportamiento se comprueba contra la base en
+    // tests/db/secciones.sql; esto fija la intención en el DDL, que es donde un
+    // cambio de una palabra la invierte sin que se note en una revisión.
+    const fk = sql.match(/add column section_id[\s\S]*?;/)?.[0] ?? '';
+    expect(fk).toMatch(/references sections\(id\) on delete set null/);
+    expect(fk).not.toMatch(/on delete cascade/);
+  });
+
+  it('D13: las funciones que reordenan son SECURITY INVOKER', () => {
+    // Si fueran DEFINER correrían como el dueño de la función y las políticas de
+    // escritura no aplicarían: un alumno reordenaría el curso de su instituto.
+    // Son invoker a propósito, y por eso cada una comprueba las filas afectadas.
+    const fns = sql.match(/create or replace function (?:reorder_\w+|move_lesson|set_lesson_section)[\s\S]*?\$\$/g) ?? [];
+    expect(fns.length).toBeGreaterThan(0);
+    for (const f of fns) {
+      expect(f).toMatch(/security invoker/i);
+      expect(f).not.toMatch(/security definer/i);
+    }
+  });
+
   it('toda función SECURITY DEFINER fija search_path', () => {
     const fns = sql.match(/create or replace function[\s\S]*?\$\$/g) ?? [];
     const definers = fns.filter((f) => /security definer/i.test(f));

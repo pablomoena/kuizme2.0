@@ -132,6 +132,12 @@ jobs:
       - name: Controles de inscripción
         run: $PSQL -f tests/db/controles-inscripcion.sql
 
+      # D13 · Secciones y liberación por módulo. La comprobación que decide es
+      # "módulo cerrado + lección con fecha ya pasada": si esa pasa, el suelo del
+      # módulo no existe y abrir "la semana 3" no significa nada.
+      - name: Secciones y liberación por módulo
+        run: $PSQL -f tests/db/secciones.sql
+
       # La carrera del cupo necesita DOS conexiones solapadas, así que no cabe en
       # un archivo .sql. Sin el `for update` del trigger, entran dos alumnos en un
       # cupo de uno — verificado quitándolo.

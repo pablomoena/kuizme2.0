@@ -173,7 +173,13 @@ if (schema.functions.length === 0) {
     } else {
       lines.push('        Args: {');
       for (const a of f.args) {
-        lines.push(`          ${a.name}: ${tsFnType(a.type, enumNames)};`);
+        // `| null` siempre: Postgres no tiene forma de declarar un argumento NOT
+        // NULL, así que toda función acepta null en cualquier parámetro y decide
+        // en su cuerpo. Emitirlo no-nulo obligaba a un cast en el único sitio
+        // donde el null es intencional (set_lesson_section para desagrupar), y un
+        // cast ahí habría tapado el tipo en vez de corregirlo. Ensanchar un
+        // argumento no rompe a quien pasa un valor: sigue siendo asignable.
+        lines.push(`          ${a.name}: ${tsFnType(a.type, enumNames)} | null;`);
       }
       lines.push('        };');
     }

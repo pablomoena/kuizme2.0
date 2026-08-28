@@ -100,8 +100,46 @@ export async function createLesson(_prev: FormResult, formData: FormData): Promi
   return OK;
 }
 
+/**
+ * Crear una sección dentro de un módulo (D13).
+ *
+ * organization_id y course_id no se pasan: los derivan los triggers desde el
+ * módulo, igual que en lecciones. Lo único que llega del cliente es a qué módulo
+ * va, y ahí el filtro es RLS.
+ */
+export async function createSection(_prev: FormResult, formData: FormData): Promise<FormResult> {
+  await requireStaff();
+  const parsed = z
+    .object({ moduleId: uuid, courseSlug: z.string(), title: titulo })
+    .safeParse({
+      moduleId: formData.get('moduleId'),
+      courseSlug: formData.get('courseSlug'),
+      title: formData.get('title'),
+    });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Revisa los datos.' };
+
+  const supabase = await createClient();
+  const { data: ultima } = await supabase
+    .from('sections')
+    .select('order_index')
+    .eq('module_id', parsed.data.moduleId)
+    .order('order_index', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error } = await supabase.from('sections').insert({
+    module_id: parsed.data.moduleId,
+    title: parsed.data.title,
+    order_index: (ultima?.order_index ?? 0) + 1,
+  });
+
+  if (error) return { error: `No se pudo crear la sección: ${error.message}` };
+  refresh(parsed.data.courseSlug);
+  return OK;
+}
+
 export async function renameItem(
-  tabla: 'modules' | 'lessons',
+  tabla: 'modules' | 'sections' | 'lessons',
   id: string,
   title: string,
   courseSlug: string,
@@ -125,7 +163,7 @@ export async function renameItem(
 }
 
 export async function deleteItem(
-  tabla: 'modules' | 'lessons',
+  tabla: 'modules' | 'sections' | 'lessons',
   id: string,
   courseSlug: string,
 ): Promise<FormResult> {
@@ -149,7 +187,7 @@ export async function deleteItem(
  * significa que alguien más cambió el curso mientras tanto.
  */
 export async function reorder(
-  nivel: 'modules' | 'lessons',
+  nivel: 'modules' | 'sections' | 'lessons',
   parentId: string,
   orderedIds: string[],
   courseSlug: string,
@@ -168,10 +206,15 @@ export async function reorder(
           _course: parsed.data.parentId,
           _ids: parsed.data.orderedIds,
         })
-      : await supabase.rpc('reorder_lessons', {
-          _module: parsed.data.parentId,
-          _ids: parsed.data.orderedIds,
-        });
+      : nivel === 'sections'
+        ? await supabase.rpc('reorder_sections', {
+            _module: parsed.data.parentId,
+            _ids: parsed.data.orderedIds,
+          })
+        : await supabase.rpc('reorder_lessons', {
+            _module: parsed.data.parentId,
+            _ids: parsed.data.orderedIds,
+          });
 
   if (error) {
     // 42501 lo lanza la función cuando RLS dejó el UPDATE en cero filas.
@@ -328,6 +371,88 @@ export async function setEnrollmentControls(
 
   if (error) return { error: `No se pudo guardar: ${error.message}` };
   if (data.length === 0) return { error: 'No tienes permiso para editar este curso.' };
+
+  refresh(courseSlug);
+  return OK;
+}
+
+/**
+ * Agrupar una lección en una sección, o sacarla (D13).
+ *
+ * Pasa por set_lesson_section() en vez de un UPDATE directo por un motivo: la
+ * función comprueba que la sección sea del MISMO módulo y devuelve un mensaje
+ * que se puede mostrar. Un UPDATE directo también sería rechazado —el trigger
+ * está para eso— pero con un error de base de datos en bruto.
+ */
+export async function setLessonSection(
+  lessonId: string,
+  sectionId: string | null,
+  courseSlug: string,
+): Promise<FormResult> {
+  await requireStaff();
+  if (!uuid.safeParse(lessonId).success) return { error: 'Identificador inválido.' };
+  if (sectionId !== null && !uuid.safeParse(sectionId).success) {
+    return { error: 'Identificador de sección inválido.' };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('set_lesson_section', {
+    _lesson: lessonId,
+    _section: sectionId,
+  });
+
+  if (error) {
+    if (error.code === '42501') return { error: 'No tienes permiso para mover esta lección.' };
+    return { error: error.message };
+  }
+
+  refresh(courseSlug);
+  return OK;
+}
+
+/**
+ * Cuándo se abre un MÓDULO (D13). Mismo par de campos que la lección, y la misma
+ * regla: se guarda el que corresponde al modo del curso y el otro se deja como
+ * está, para no perder lo configurado al cambiar de modo y volver.
+ *
+ * El módulo es suelo, no techo: poner una fecha acá no borra las de sus
+ * lecciones, y una lección con fecha posterior sigue abriéndose después.
+ */
+export async function setModuleUnlock(
+  moduleId: string,
+  campo: 'unlock_at' | 'unlock_after_days',
+  valor: string | null,
+  courseSlug: string,
+): Promise<FormResult> {
+  await requireStaff();
+  if (!uuid.safeParse(moduleId).success) return { error: 'Identificador inválido.' };
+
+  let patch: { unlock_at?: string | null; unlock_after_days?: number | null };
+
+  if (campo === 'unlock_at') {
+    if (valor && Number.isNaN(Date.parse(valor))) return { error: 'Esa fecha no es válida.' };
+    patch = { unlock_at: valor && valor.length > 0 ? new Date(valor).toISOString() : null };
+  } else {
+    if (valor === null || valor.length === 0) {
+      patch = { unlock_after_days: null };
+    } else {
+      const dias = Number(valor);
+      if (!Number.isInteger(dias) || dias < 0) {
+        return { error: 'Los días tienen que ser un número entero de 0 o más.' };
+      }
+      patch = { unlock_after_days: dias };
+    }
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('modules')
+    .update(patch)
+    .eq('id', moduleId)
+    .select('id');
+
+  if (error) return { error: `No se pudo guardar: ${error.message}` };
+  if (data.length === 0) return { error: 'No tienes permiso para editar este módulo.' };
 
   refresh(courseSlug);
   return OK;
