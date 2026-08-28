@@ -73,7 +73,7 @@ insert into exam_attempts (id, exam_id, student_id, attempt_number, status, scor
 commit;
 
 -- ── Utilidades ─────────────────────────────────────────────────────────────
-create or replace function test_as(_user uuid) returns void
+create or replace function test.test_as(_user uuid) returns void
 language plpgsql as $$
 begin
   perform set_config('request.jwt.claims',
@@ -81,7 +81,7 @@ begin
 end $$;
 
 -- Cuenta filas visibles de una tabla para el usuario actual.
-create or replace function visible_count(_table text) returns bigint
+create or replace function test.visible_count(_table text) returns bigint
 language plpgsql as $$
 declare _n bigint;
 begin
@@ -89,11 +89,11 @@ begin
   return _n;
 end $$;
 
-create or replace function expect_count(_table text, _expected bigint, _label text)
+create or replace function test.expect_count(_table text, _expected bigint, _label text)
 returns void language plpgsql as $$
 declare _n bigint;
 begin
-  _n := visible_count(_table);
+  _n := test.visible_count(_table);
   if _n <> _expected then
     raise exception 'FALLO [%]: % ve % filas en %, esperaba %',
       _label, _label, _n, _table, _expected;
@@ -109,15 +109,15 @@ end $$;
 \echo '══════════════════════════════════════════════════════════════'
 begin;
 set local role authenticated;
-select test_as('aa000000-0000-0000-0000-000000000001');
-select expect_count('organizations',   1, 'admin A');
-select expect_count('courses',         1, 'admin A');
-select expect_count('modules',         1, 'admin A');
-select expect_count('lessons',         1, 'admin A');
-select expect_count('question_banks',  1, 'admin A');
-select expect_count('questions',       1, 'admin A');
-select expect_count('exams',           1, 'admin A');
-select expect_count('exam_attempts',   1, 'admin A');
+select test.test_as('aa000000-0000-0000-0000-000000000001');
+select test.expect_count('organizations',   1, 'admin A');
+select test.expect_count('courses',         1, 'admin A');
+select test.expect_count('modules',         1, 'admin A');
+select test.expect_count('lessons',         1, 'admin A');
+select test.expect_count('question_banks',  1, 'admin A');
+select test.expect_count('questions',       1, 'admin A');
+select test.expect_count('exams',           1, 'admin A');
+select test.expect_count('exam_attempts',   1, 'admin A');
 -- Y que lo que ve es lo correcto, no una fila cualquiera:
 do $$ begin
   if (select slug from organizations) <> 'instituto-a' then
@@ -136,7 +136,7 @@ rollback;
 \echo '══════════════════════════════════════════════════════════════'
 begin;
 set local role authenticated;
-select test_as('bb000000-0000-0000-0000-000000000002');
+select test.test_as('bb000000-0000-0000-0000-000000000002');
 do $$ begin
   if exists (select 1 from courses where organization_id = '0a000000-0000-0000-0000-000000000001') then
     raise exception 'FALLO CRÍTICO: fuga de cursos entre tenants';
@@ -164,7 +164,7 @@ rollback;
 \echo '══════════════════════════════════════════════════════════════'
 begin;
 set local role authenticated;
-select test_as('aa000000-0000-0000-0000-000000000001');   -- incluso siendo admin
+select test.test_as('aa000000-0000-0000-0000-000000000001');   -- incluso siendo admin
 do $$ begin
   perform 1 from question_keys limit 1;
   raise exception 'FALLO CRÍTICO: question_keys es alcanzable por authenticated';
@@ -179,7 +179,7 @@ rollback;
 \echo '══════════════════════════════════════════════════════════════'
 begin;
 set local role authenticated;
-select test_as('bb000000-0000-0000-0000-000000000002');
+select test.test_as('bb000000-0000-0000-0000-000000000002');
 do $$ begin
   update exam_attempts set score = 100
    where id = '7b000000-0000-0000-0000-000000000001';
@@ -198,12 +198,12 @@ rollback;
 \echo '══════════════════════════════════════════════════════════════'
 begin;
 set local role authenticated;
-select test_as('cc000000-0000-0000-0000-000000000001');
-select expect_count('organizations',  0, 'intruso');
-select expect_count('courses',        0, 'intruso');
-select expect_count('exams',          0, 'intruso');
-select expect_count('exam_attempts',  0, 'intruso');
-select expect_count('questions',      0, 'intruso');
+select test.test_as('cc000000-0000-0000-0000-000000000001');
+select test.expect_count('organizations',  0, 'intruso');
+select test.expect_count('courses',        0, 'intruso');
+select test.expect_count('exams',          0, 'intruso');
+select test.expect_count('exam_attempts',  0, 'intruso');
+select test.expect_count('questions',      0, 'intruso');
 rollback;
 
 \echo ''
@@ -212,7 +212,7 @@ rollback;
 \echo '══════════════════════════════════════════════════════════════'
 begin;
 set local role authenticated;
-select test_as('bb000000-0000-0000-0000-000000000001');
+select test.test_as('bb000000-0000-0000-0000-000000000001');
 do $$ begin
   insert into courses (organization_id, slug, title)
   values ('0a000000-0000-0000-0000-000000000001', 'intruso', 'Curso inyectado');

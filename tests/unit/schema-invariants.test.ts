@@ -79,6 +79,38 @@ describe('invariantes del esquema', () => {
     expect(sql).not.toMatch(/\bprice_type\b/);
   });
 
+  it('D7: el contenido se lee por can_study_course, no por membresía', () => {
+    for (const table of ['modules', 'lessons']) {
+      const policy = new RegExp(
+        `create policy ${table}_read on ${table} for select to authenticated\\s+using \\(can_study_course\\(course_id\\)\\)`,
+      );
+      expect(sql).toMatch(policy);
+    }
+  });
+
+  it('D7: el material de evaluación no tiene política de lectura para alumnos', () => {
+    for (const table of ['question_banks', 'questions', 'question_options', 'exam_questions']) {
+      expect(sql).toMatch(new RegExp(`drop policy ${table}_read\\s+on ${table}`));
+    }
+  });
+
+  it('D7: lessons lleva course_id denormalizado y se sincroniza al mover', () => {
+    expect(sql).toMatch(/alter table lessons add column course_id uuid/);
+    expect(sql).toMatch(/alter table lessons alter column course_id set not null/);
+    expect(sql).toMatch(/create trigger lessons_course_sync before update on lessons/);
+  });
+
+  it('D7: ninguna rama de catálogo concede lectura entre organizaciones', () => {
+    // La condición de catálogo (published + no privado) siempre va acompañada de
+    // is_member_of. Sin eso, un curso público quedaba legible para otros tenants.
+    const branches = sql.match(/status = 'published' and[^\n]*visibility <> 'private'/g) ?? [];
+    expect(branches.length).toBeGreaterThan(0);
+    for (const b of branches) {
+      const context = sql.slice(Math.max(0, sql.indexOf(b) - 120), sql.indexOf(b) + b.length);
+      expect(context).toMatch(/is_member_of/);
+    }
+  });
+
   it('RLS activo y forzado en todas las tablas listadas', () => {
     expect(sql).toMatch(/enable row level security/);
     expect(sql).toMatch(/force row level security/);

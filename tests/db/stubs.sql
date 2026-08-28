@@ -57,3 +57,15 @@ grant select on auth.users to authenticated, service_role;
 alter default privileges in schema public grant all on tables    to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+
+-- ── Esquema para los helpers de las suites ────────────────────────────────
+-- Van acá y no en public por una razón concreta: el generador de tipos
+-- introspecta las funciones de public que `authenticated` puede ejecutar, y unos
+-- helpers de prueba creados en public terminaban dentro de src/lib/db/types.ts.
+-- El resultado eran tipos distintos según si habías corrido las suites antes de
+-- generar, y el chequeo de deriva fallaba sin que nada estuviera mal.
+create schema if not exists test;
+-- Las suites cambian a rol authenticated y desde ahí llaman a sus helpers.
+grant usage on schema test to anon, authenticated, service_role;
+alter default privileges in schema test
+  grant execute on functions to anon, authenticated, service_role;

@@ -127,3 +127,41 @@ select count(*) as tablas from pg_tables where schemaname='public';
 select count(*) as politicas from pg_policies where schemaname='public';
 select count(*) as tablas_sin_rls from pg_class c join pg_namespace n on n.oid=c.relnamespace
   where n.nspname='public' and c.relkind='r' and not c.relrowsecurity;
+
+-- ── El slug de curso va a la URL: formato validado y normalizado ───────────
+do $$
+declare
+  org uuid := 'ff000000-0000-0000-0000-000000000001';
+  guardado text;
+  malos text[] := array[
+    'con espacios', 'con/barra', 'ab', '-empieza-con-guion', 'termina-con-guion-',
+    'acentuádo', 'con.punto', 'con_guion_bajo',
+    'demasiado-largo-demasiado-largo-demasiado-largo-largo'
+  ];
+  m text;
+  rechazados int := 0;
+begin
+  insert into organizations (id, slug, name) values (org, 'inst-slug', 'Slug');
+
+  -- Liberal al recibir: se normaliza en vez de rechazarse.
+  insert into courses (organization_id, slug, title)
+    values (org, '  Curso-DE-Prueba  ', 'T') returning slug into guardado;
+  if guardado <> 'curso-de-prueba' then
+    raise exception 'FALLA: el slug de curso no se normalizó (quedó "%")', guardado;
+  end if;
+  raise notice 'OK: slug de curso normalizado a "%"', guardado;
+
+  -- Estricto al guardar.
+  foreach m in array malos loop
+    begin
+      insert into courses (organization_id, slug, title) values (org, m, 'T');
+      raise exception 'FALLA: se aceptó el slug de curso "%"', m;
+    exception
+      when check_violation then rechazados := rechazados + 1;
+    end;
+  end loop;
+  if rechazados <> array_length(malos, 1) then
+    raise exception 'FALLA: se rechazaron % de % slugs inválidos', rechazados, array_length(malos, 1);
+  end if;
+  raise notice 'OK: % slugs de curso inválidos rechazados', rechazados;
+end $$;
