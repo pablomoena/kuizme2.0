@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { cancelRequest, requestEnrollment, selfEnroll } from '@/lib/courses/enroll-actions';
 import { describirPrecio, type Precio } from '@/lib/courses/precio';
+import { explicarBlocker } from '@/lib/courses/release';
 import type { StudentCourse } from '@/lib/courses/catalog';
 
 /**
@@ -30,6 +31,10 @@ export function Matricularse({
   const [mensaje, setMensaje] = useState('');
   const [pendiente, startTransition] = useTransition();
   const etiquetaPrecio = describirPrecio(precio);
+  const aviso =
+    enroll.via === 'solicitud' && enroll.motivo
+      ? explicarBlocker(enroll.motivo, organizationName)
+      : null;
 
   function correr(accion: () => Promise<{ error: string | null }>) {
     setError(null);
@@ -43,12 +48,14 @@ export function Matricularse({
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-line bg-surface-muted px-4 py-4">
+      {/* El motivo concreto en el título: "El curso completó su cupo" en vez de
+          "No estás matriculado", que es cierto y no dice nada útil. */}
       <div className="flex flex-wrap items-baseline gap-x-3">
-        <p className="font-medium">No estás matriculado</p>
-        {etiquetaPrecio ? (
-          <p className="text-sm text-ink-muted">{etiquetaPrecio}</p>
-        ) : null}
+        <p className="font-medium">{aviso?.titulo ?? 'No estás matriculado'}</p>
+        {etiquetaPrecio ? <p className="text-sm text-ink-muted">{etiquetaPrecio}</p> : null}
       </div>
+
+      {aviso?.detalle ? <p className="text-sm text-ink-muted">{aviso.detalle}</p> : null}
 
       {error ? (
         <p
@@ -100,7 +107,7 @@ export function Matricularse({
           className="flex flex-col gap-2"
         >
           <label className="flex flex-col gap-1.5 text-sm">
-            <span>Solicita tu matrícula a {organizationName}</span>
+            <span className="sr-only">Mensaje para {organizationName}</span>
             <textarea
               value={mensaje}
               onChange={(e) => setMensaje(e.target.value)}

@@ -64,6 +64,11 @@ export type CourseDetail = {
   visibility: Enum<'course_visibility'>;
   release_mode: Enum<'course_release_mode'>;
   sequential: boolean;
+  enrollment_open: boolean;
+  enrollment_deadline: string | null;
+  max_students: number | null;
+  /** Matrículas activas: es lo que ocupa cupo (D12). */
+  activeEnrollments: number;
   modules: {
     id: string;
     title: string;
@@ -93,6 +98,7 @@ export async function getCourse(
     .from('courses')
     .select(
       `id, slug, title, subtitle, description, status, visibility, release_mode, sequential,
+       enrollment_open, enrollment_deadline, max_students,
        modules(id, title, description, order_index,
                lessons(id, title, kind, order_index, is_required, is_preview,
                        unlock_at, unlock_after_days))`,
@@ -103,6 +109,13 @@ export async function getCourse(
 
   if (error) return { data: null, error: error.message };
   if (!data) return { data: null, error: null };
+
+  const activos = await supabase
+    .from('enrollments')
+    .select('course_id', { count: 'exact', head: true })
+    .eq('course_id', data.id)
+    .eq('status', 'active');
+  if (activos.error) return { data: null, error: activos.error.message };
 
   // El orden lo decide el servidor, no el cliente: una lista que se reordena
   // sola según lo que devuelva Postgres es imposible de depurar.
@@ -115,5 +128,8 @@ export async function getCourse(
       ),
     }));
 
-  return { data: { ...data, modules }, error: null };
+  return {
+    data: { ...data, activeEnrollments: activos.count ?? 0, modules },
+    error: null,
+  };
 }

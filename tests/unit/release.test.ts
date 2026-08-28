@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { diasHasta, esReason, explicarBloqueo, MODOS } from '@/lib/courses/release';
+import {
+  diasHasta,
+  esBlocker,
+  esReason,
+  explicarBlocker,
+  explicarBloqueo,
+  MODOS,
+} from '@/lib/courses/release';
 
 const ahora = new Date('2026-09-01T12:00:00Z');
 
@@ -66,5 +73,60 @@ describe('MODOS', () => {
       expect(m.titulo.length).toBeGreaterThan(5);
       expect(m.detalle.length).toBeGreaterThan(20);
     }
+  });
+});
+
+describe('esBlocker', () => {
+  it('reconoce los motivos que devuelve la base', () => {
+    for (const b of [
+      'no-existe', 'no-miembro', 'no-publicado', 'ya-matriculado',
+      'no-gratis', 'cerrada', 'plazo-vencido', 'cupo-lleno',
+    ] as const) {
+      expect(esBlocker(b)).toBe(b);
+    }
+  });
+
+  it('null significa que sí puede', () => {
+    expect(esBlocker(null)).toBeNull();
+  });
+
+  it('un motivo desconocido NO se trata como "puede"', () => {
+    // Si cayera en null, la interfaz mostraría un botón de matrícula que la
+    // base va a rechazar. Fallar hacia el lado que no promete es lo correcto.
+    expect(esBlocker('motivo-que-no-existe')).not.toBeNull();
+  });
+});
+
+describe('explicarBlocker', () => {
+  it('distingue cupo lleno de plazo vencido', () => {
+    const cupo = explicarBlocker('cupo-lleno', 'Instituto X');
+    const plazo = explicarBlocker('plazo-vencido', 'Instituto X');
+    expect(cupo!.titulo).not.toBe(plazo!.titulo);
+    expect(cupo!.titulo).toMatch(/cupo/i);
+    expect(plazo!.titulo).toMatch(/plazo/i);
+  });
+
+  it('cada motivo ofrece la salida: solicitar', () => {
+    for (const b of ['cerrada', 'plazo-vencido', 'cupo-lleno', 'no-gratis'] as const) {
+      // /solic[ií]t/ y no /solicit/: en español el verbo lleva acento en
+      // "solicítala", y la versión sin acento no coincidiría.
+      expect(explicarBlocker(b, 'Instituto X')!.detalle).toMatch(/solic[ií]t/i);
+    }
+  });
+
+  it('nombra a la institución cuando la decisión es suya', () => {
+    expect(explicarBlocker('cerrada', 'Instituto Bíblico Miel')!.detalle).toContain(
+      'Instituto Bíblico Miel',
+    );
+  });
+
+  it('los estados que el alumno no debería alcanzar no se detallan', () => {
+    for (const b of ['no-existe', 'no-miembro', 'no-publicado'] as const) {
+      expect(explicarBlocker(b, 'X')!.detalle).toBeNull();
+    }
+  });
+
+  it('quien ya está matriculado no recibe ningún aviso', () => {
+    expect(explicarBlocker('ya-matriculado', 'X')).toBeNull();
   });
 });

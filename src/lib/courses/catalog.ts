@@ -2,7 +2,7 @@ import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import type { Enum } from '@/lib/db/types';
 import type { QueryResult } from './queries';
-import { esReason, type Reason } from './release';
+import { esBlocker, esReason, type EnrollBlocker, type Reason } from './release';
 
 /**
  * Lo que ve el ALUMNO. Consultas separadas de las del editor a propósito: son
@@ -107,7 +107,7 @@ export type StudentCourse = {
   enroll:
     | { via: 'ya-matriculado' }
     | { via: 'directa' }
-    | { via: 'solicitud'; pendiente: { id: string } | null }
+    | { via: 'solicitud'; pendiente: { id: string } | null; motivo: EnrollBlocker | null }
     | { via: 'ninguna' };
   precio: { kind: Enum<'pricing_kind'>; amountCents: number | null; currency: string } | null;
   modules: { id: string; title: string; description: string | null; lessons: StudentLesson[] }[];
@@ -162,7 +162,9 @@ export async function getCourseForStudent(
       .eq('course_id', course.id),
     // can_self_enroll es la MISMA función que usa la política: el botón aparece
     // si y solo si la base aceptaría la matrícula.
-    supabase.rpc('can_self_enroll', { _course: course.id }),
+    // self_enroll_blocker devuelve el MOTIVO, no un booleano: la interfaz tiene
+    // que poder decir "cupo agotado" en vez de "no admite matrícula directa".
+    supabase.rpc('self_enroll_blocker', { _course: course.id }),
     supabase
       .from('course_pricing')
       .select('kind, amount_cents, currency')
@@ -182,6 +184,7 @@ export async function getCourseForStudent(
   if (progreso.error) return { data: null, error: progreso.error.message };
   if (apertura.error) return { data: null, error: apertura.error.message };
   if (autoMatricula.error) return { data: null, error: autoMatricula.error.message };
+  const motivo = esBlocker(autoMatricula.data ?? null);
 
   const cuerpo = new Map(contenidos.data.map((c) => [c.lesson_id, c.body]));
   const hechas = new Set(completadas.data.map((c) => c.lesson_id));
@@ -221,9 +224,9 @@ export async function getCourseForStudent(
       enroll:
         matricula.data !== null
           ? { via: 'ya-matriculado' as const }
-          : autoMatricula.data === true
+          : motivo === null
             ? { via: 'directa' as const }
-            : { via: 'solicitud' as const, pendiente: solicitud.data ?? null },
+            : { via: 'solicitud' as const, pendiente: solicitud.data ?? null, motivo },
       precio: precio.data
         ? {
             kind: precio.data.kind,

@@ -6,6 +6,7 @@ import { getCourse } from '@/lib/courses/queries';
 import { EstadoCurso } from '@/components/estado-curso';
 import { ArbolContenido } from '@/components/arbol-contenido';
 import { EntregaCurso } from '@/components/entrega-curso';
+import { InscripcionCurso } from '@/components/inscripcion-curso';
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -41,6 +42,15 @@ export default async function CursoPage({ params }: Props) {
         {course.subtitle ? <p className="text-ink-muted">{course.subtitle}</p> : null}
         <EstadoCurso status={course.status} visibility={course.visibility} />
       </header>
+
+      <InscripcionCurso
+        courseId={course.id}
+        courseSlug={course.slug}
+        enrollmentOpen={course.enrollment_open}
+        enrollmentDeadline={course.enrollment_deadline}
+        maxStudents={course.max_students}
+        activos={course.activeEnrollments}
+      />
 
       <EntregaCurso
         courseId={course.id}

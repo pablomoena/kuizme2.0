@@ -127,6 +127,19 @@ jobs:
       - name: Matrícula
         run: $PSQL -f tests/db/matricula.sql
 
+      # D12 · Inscripción abierta, plazo y cupo. Las tres columnas existían en la
+      # v1 y ninguna funcionaba de verdad.
+      - name: Controles de inscripción
+        run: $PSQL -f tests/db/controles-inscripcion.sql
+
+      # La carrera del cupo necesita DOS conexiones solapadas, así que no cabe en
+      # un archivo .sql. Sin el `for update` del trigger, entran dos alumnos en un
+      # cupo de uno — verificado quitándolo.
+      - name: Carrera del cupo
+        run: ./tests/db/race-cupo.sh
+        env:
+          PGPASSWORD: kuizme
+
       # Va al final: traspasa la propiedad de todas las tablas y funciones a un
       # rol sin bypassrls, así que deja la base inservible para otras pruebas.
       - name: Independencia de los privilegios del dueño
