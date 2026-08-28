@@ -103,6 +103,13 @@ export type StudentCourse = {
   description: string | null;
   enrolled: boolean;
   progress: { completed: number; total: number; percent: number } | null;
+  /** D11: cómo puede matricularse este usuario en este curso, ahora. */
+  enroll:
+    | { via: 'ya-matriculado' }
+    | { via: 'directa' }
+    | { via: 'solicitud'; pendiente: { id: string } | null }
+    | { via: 'ninguna' };
+  precio: { kind: Enum<'pricing_kind'>; amountCents: number | null; currency: string } | null;
   modules: { id: string; title: string; description: string | null; lessons: StudentLesson[] }[];
 };
 
@@ -127,7 +134,8 @@ export async function getCourseForStudent(
   if (error) return { data: null, error: error.message };
   if (!course) return { data: null, error: null };
 
-  const [contenidos, matricula, completadas, progreso, apertura] = await Promise.all([
+  const [contenidos, matricula, completadas, progreso, apertura, autoMatricula, precio, solicitud] =
+    await Promise.all([
     // Llegan solo las que este usuario puede leer. Esa es la autorización.
     supabase.from('lesson_contents').select('lesson_id, body').eq('course_id', course.id),
     supabase
@@ -152,12 +160,28 @@ export async function getCourseForStudent(
       .from('my_lesson_availability')
       .select('lesson_id, reason, opens_at')
       .eq('course_id', course.id),
+    // can_self_enroll es la MISMA función que usa la política: el botón aparece
+    // si y solo si la base aceptaría la matrícula.
+    supabase.rpc('can_self_enroll', { _course: course.id }),
+    supabase
+      .from('course_pricing')
+      .select('kind, amount_cents, currency')
+      .eq('course_id', course.id)
+      .maybeSingle(),
+    supabase
+      .from('enrollment_requests')
+      .select('id')
+      .eq('course_id', course.id)
+      .eq('student_id', userId)
+      .eq('status', 'pending')
+      .maybeSingle(),
   ]);
 
   if (contenidos.error) return { data: null, error: contenidos.error.message };
   if (completadas.error) return { data: null, error: completadas.error.message };
   if (progreso.error) return { data: null, error: progreso.error.message };
   if (apertura.error) return { data: null, error: apertura.error.message };
+  if (autoMatricula.error) return { data: null, error: autoMatricula.error.message };
 
   const cuerpo = new Map(contenidos.data.map((c) => [c.lesson_id, c.body]));
   const hechas = new Set(completadas.data.map((c) => c.lesson_id));
@@ -194,6 +218,19 @@ export async function getCourseForStudent(
     data: {
       ...course,
       enrolled: matricula.data !== null,
+      enroll:
+        matricula.data !== null
+          ? { via: 'ya-matriculado' as const }
+          : autoMatricula.data === true
+            ? { via: 'directa' as const }
+            : { via: 'solicitud' as const, pendiente: solicitud.data ?? null },
+      precio: precio.data
+        ? {
+            kind: precio.data.kind,
+            amountCents: precio.data.amount_cents,
+            currency: precio.data.currency,
+          }
+        : null,
       progress: progreso.data
         ? {
             completed: progreso.data.completed ?? 0,

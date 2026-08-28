@@ -121,6 +121,12 @@ jobs:
       - name: Modos de entrega del contenido
         run: $PSQL -f tests/db/release-modes.sql
 
+      # D11 · Las dos vías de matrícula, y sobre todo lo que el alumno NO puede
+      # hacer de paso: ponerse nota, marcarse el curso completado, entrar gratis
+      # en uno de pago, o aprobar su propia solicitud.
+      - name: Matrícula
+        run: $PSQL -f tests/db/matricula.sql
+
       # Va al final: traspasa la propiedad de todas las tablas y funciones a un
       # rol sin bypassrls, así que deja la base inservible para otras pruebas.
       - name: Independencia de los privilegios del dueño
