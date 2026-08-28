@@ -29,6 +29,16 @@ test.describe('sin sesión', () => {
     expect(res.headers()['location']).toBe('/login');
   });
 
+  test('las rutas del editor tampoco se ven sin sesión', async ({ request }) => {
+    // Se prueban todas las rutas del grupo (portal), no solo /panel: el riesgo
+    // real es añadir una página nueva y que quede fuera del guard.
+    for (const ruta of ['/panel/cursos', '/panel/cursos/cualquier-curso']) {
+      const res = await request.get(`${ORIGIN}${ruta}`, asHost('ibmiel.localhost:3000'));
+      expect(res.status(), ruta).toBe(307);
+      expect(res.headers()['location'], ruta).toBe('/login');
+    }
+  });
+
   test('el login del tenant se muestra', async ({ page }) => {
     await page.goto(`${TENANT}/login`);
     await expect(page.getByRole('heading', { level: 1, name: 'Entrar' })).toBeVisible();
