@@ -48,6 +48,24 @@ concreto y documentado de la v1:
 `tests/unit/schema-invariants.test.ts` verifica estas decisiones en CI para que
 nadie las deshaga sin darse cuenta.
 
+## Dos trampas del entorno que ya nos costaron tiempo
+
+**1. `supabase db push` informa mal.** Imprime `Remote database is up to date`
+*después* de aplicar las migraciones, así que el mensaje describe el estado final
+y no una decisión de saltarse algo. **No lo uses como señal.** Para saber el
+estado real, corre `tests/db/verify-remote.sql` en el SQL Editor del dashboard.
+
+**2. Supabase concede toda tabla nueva a `anon` y `authenticated`.** Tiene
+`alter default privileges` configurado en el schema `public`, así que crear una
+tabla la abre a los roles de usuario sin que nadie lo pida — y las omisiones
+deliberadas de las migraciones de permisos no se respetan. Se detectó con
+`question_keys`, que tenía 6 grants pese a no concedérsele ninguno.
+
+Por eso `tests/db/stubs.sql` **emula esos default privileges**: sin ellos, las
+pruebas locales pasan mientras la base real está distinta. Cualquier tabla nueva
+tiene que revocarse explícitamente si no debe ser alcanzable, y el test de
+comportamiento lo verifica en CI.
+
 ## Comandos
 
 ```bash
