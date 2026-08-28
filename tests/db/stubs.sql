@@ -47,3 +47,13 @@ end $$;
 
 grant usage on schema auth to anon, authenticated, service_role;
 grant select on auth.users to authenticated, service_role;
+
+-- ── Fidelidad con Supabase: default privileges ─────────────────────────────
+-- Supabase configura los privilegios por defecto del schema public para que
+-- TODA tabla nueva quede concedida a anon y authenticated. Postgres puro no lo
+-- hace, así que sin esto las pruebas locales no reproducen la realidad y un
+-- error de permisos pasa desapercibido — que es exactamente lo que ocurrió con
+-- question_keys.
+alter default privileges in schema public grant all on tables    to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;

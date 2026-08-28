@@ -105,15 +105,20 @@ end $$;
 
 \echo ''
 \echo '── anon no alcanza ninguna tabla ──'
+-- Esta guarda existe porque Supabase concede por defecto toda tabla nueva a
+-- anon y authenticated. Es la red que evita que una tabla futura quede abierta
+-- sin que nadie se dé cuenta.
 do $$
-declare _n int;
+declare _n int; _t text;
 begin
-  select count(*) into _n from information_schema.role_table_grants
+  select count(*), string_agg(distinct table_name, ', ')
+    into _n, _t
+   from information_schema.role_table_grants
    where table_schema='public' and grantee='anon';
   if _n > 0 then
-    raise exception 'FALLO: anon tiene % grants; debería ser 0', _n;
+    raise exception 'FALLO: anon tiene % grants sobre: %', _n, _t;
   end if;
-  raise notice 'OK: anon sin acceso directo a tablas';
+  raise notice 'OK: anon sin acceso directo a ninguna tabla';
 end $$;
 
 \echo ''
