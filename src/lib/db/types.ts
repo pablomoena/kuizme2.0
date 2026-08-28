@@ -1094,7 +1094,65 @@ export type Database = {
       };
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      can_study_course: {
+        Args: {
+          _course: string;
+        };
+        Returns: boolean;
+      };
+      can_view_course: {
+        Args: {
+          _course: string;
+        };
+        Returns: boolean;
+      };
+      has_org_role: {
+        Args: {
+          _org: string;
+          _roles: Database['public']['Enums']['org_role'][];
+        };
+        Returns: boolean;
+      };
+      is_enrolled_in: {
+        Args: {
+          _course: string;
+        };
+        Returns: boolean;
+      };
+      is_member_of: {
+        Args: {
+          _org: string;
+        };
+        Returns: boolean;
+      };
+      is_platform_admin: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      move_lesson: {
+        Args: {
+          _lesson: string;
+          _target_module: string;
+          _position: number;
+        };
+        Returns: number;
+      };
+      reorder_lessons: {
+        Args: {
+          _module: string;
+          _ids: string[];
+        };
+        Returns: number;
+      };
+      reorder_modules: {
+        Args: {
+          _course: string;
+          _ids: string[];
+        };
+        Returns: number;
+      };
+    };
     CompositeTypes: { [_ in never]: never };
     Enums: {
       attempt_status: 'in_progress' | 'submitted' | 'graded' | 'expired';

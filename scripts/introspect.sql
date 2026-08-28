@@ -15,6 +15,37 @@ select json_build_object(
     ) v on true
     where n.nspname = 'public' and t.typtype = 'e'
   ),
+  'functions', (
+    select coalesce(json_agg(json_build_object(
+      'name', p.proname,
+      'args', coalesce(a.list, '[]'::json),
+      'returns', pg_get_function_result(p.oid)
+    ) order by p.proname), '[]'::json)
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    -- Solo las que un rol de usuario puede ejecutar: las demás no son RPC y
+    -- emitirlas invitaría a llamarlas desde el cliente.
+    join lateral (
+      select json_agg(json_build_object('name', an, 'type', at) order by ord) as list
+      from (
+        select unnest(p.proargnames) as an,
+               unnest(string_to_array(oidvectortypes(p.proargtypes), ', ')) as at,
+               generate_subscripts(p.proargnames, 1) as ord
+      ) x
+    ) a on true
+    where n.nspname = 'public'
+      and p.prokind = 'f'
+      and has_function_privilege('authenticated', p.oid, 'EXECUTE')
+      -- Las extensiones (citext, pgcrypto) instalan decenas de funciones en
+      -- public. No son nuestras y no se llaman por RPC.
+      and not exists (
+        select 1 from pg_depend d
+        where d.objid = p.oid and d.deptype = 'e'
+      )
+      -- Las funciones de trigger no se llaman nunca por RPC y `returns trigger`
+      -- no es un tipo útil en TypeScript.
+      and pg_get_function_result(p.oid) <> 'trigger'
+  ),
   'tables', (
     select coalesce(json_agg(json_build_object(
       'name', c.relname,

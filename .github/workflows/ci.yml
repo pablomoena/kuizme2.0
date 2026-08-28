@@ -75,6 +75,19 @@ jobs:
             $PSQL -f "$f"
           done
 
+      # Los tipos se generan del esquema, no se escriben a mano: si alguien
+      # cambia una migración y no los regenera, falla acá y no con un error en
+      # tiempo de ejecución meses después.
+      #
+      # El resultado no depende de si las suites ya corrieron: sus helpers viven
+      # en el esquema `test` y el generador solo mira `public`. Estuvieron en
+      # public un rato y hacían que los tipos cambiaran según el orden de los
+      # pasos — el chequeo fallaba sin que nada estuviera mal.
+      - name: Tipos al día con el esquema
+        run: npm run db:types:check
+        env:
+          DATABASE_URL: postgresql://kuizme:kuizme@localhost:5432/kuizme_test
+
       # Y comprueba que las decisiones de diseño FUNCIONAN, no solo que compilan.
       - name: Verificar invariantes contra la base
         run: $PSQL -f tests/db/schema-behavior.sql
@@ -90,13 +103,11 @@ jobs:
       - name: Acceso a contenido
         run: $PSQL -f tests/db/content-access.sql
 
-      # Los tipos de TypeScript se generan del esquema, no se escriben a mano.
-      # Si alguien cambia una migración y no los regenera, falla acá y no con un
-      # error en tiempo de ejecución meses después.
-      - name: Tipos al día con el esquema
-        run: npm run db:types:check
-        env:
-          DATABASE_URL: postgresql://kuizme:kuizme@localhost:5432/kuizme_test
+      # Atomicidad y permisos al reordenar. Lo que se protege: que un alumno
+      # reciba un error y no un éxito silencioso — con RLS un UPDATE sin permiso
+      # no falla, simplemente no toca filas.
+      - name: Reordenar módulos y lecciones
+        run: $PSQL -f tests/db/reorder.sql
 
       # Va al final: traspasa la propiedad de todas las tablas y funciones a un
       # rol sin bypassrls, así que deja la base inservible para otras pruebas.

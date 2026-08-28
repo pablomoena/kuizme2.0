@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { requireStaff } from '@/lib/auth/guard';
 import { getCourse } from '@/lib/courses/queries';
 import { EstadoCurso } from '@/components/estado-curso';
+import { ArbolContenido } from '@/components/arbol-contenido';
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -47,33 +48,11 @@ export default async function CursoPage({ params }: Props) {
           {lecciones} {lecciones === 1 ? 'lección' : 'lecciones'}
         </p>
 
-        {course.modules.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-line px-4 py-8 text-center text-ink-muted">
-            Este curso todavía no tiene módulos.
-          </p>
-        ) : (
-          <ol className="flex flex-col gap-3">
-            {course.modules.map((m, i) => (
-              <li key={m.id} className="rounded-lg border border-line bg-surface p-4">
-                <p className="font-medium">
-                  <span className="text-ink-muted">{i + 1}.</span> {m.title}
-                </p>
-                {m.lessons.length > 0 ? (
-                  <ol className="mt-2 flex flex-col gap-1 pl-6">
-                    {m.lessons.map((l) => (
-                      <li key={l.id} className="text-sm text-ink-muted">
-                        {l.title}
-                        {l.is_required ? null : ' · opcional'}
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="mt-2 pl-6 text-sm text-ink-muted">Sin lecciones.</p>
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
+        <ArbolContenido
+          courseId={course.id}
+          courseSlug={course.slug}
+          modules={course.modules}
+        />
       </section>
     </div>
   );

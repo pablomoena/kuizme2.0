@@ -70,14 +70,14 @@ insert into exam_questions (exam_id, question_id, order_index) values
 commit;
 
 -- ── Utilidades ─────────────────────────────────────────────────────────────
-create or replace function d_as(_user uuid) returns void
+create or replace function test.d_as(_user uuid) returns void
 language plpgsql as $$
 begin
   perform set_config('request.jwt.claims',
     json_build_object('sub', _user, 'role', 'authenticated')::text, true);
 end $$;
 
-create or replace function d_expect(_label text, _got bigint, _want bigint) returns void
+create or replace function test.d_expect(_label text, _got bigint, _want bigint) returns void
 language plpgsql as $$
 begin
   if _got = _want then
@@ -87,7 +87,7 @@ begin
   end if;
 end $$;
 
-create or replace function d_count(_table text) returns bigint
+create or replace function test.d_count(_table text) returns bigint
 language plpgsql as $$
 declare n bigint;
 begin
@@ -100,27 +100,27 @@ end $$;
 \echo '══ Alumno MATRICULADO en un curso publicado ════════════════════════════'
 begin;
 set local role authenticated;
-select d_as('dd000000-0000-0000-0000-000000000002');
+select test.d_as('dd000000-0000-0000-0000-000000000002');
 do $$
 begin
   -- Ve el curso donde está matriculado y el del catálogo. No el borrador ni el ajeno.
-  perform d_expect('cursos visibles',              d_count('courses'), 2);
-  perform d_expect('cursos en borrador',
+  perform test.d_expect('cursos visibles',              test.d_count('courses'), 2);
+  perform test.d_expect('cursos en borrador',
     (select count(*) from courses where status = 'draft'), 0);
   -- Contenido solo del curso matriculado. El del catálogo no se estudia sin matrícula.
-  perform d_expect('módulos visibles',             d_count('modules'), 1);
-  perform d_expect('lecciones visibles',           d_count('lessons'), 1);
-  perform d_expect('cuerpos de lección alcanzables',
+  perform test.d_expect('módulos visibles',             test.d_count('modules'), 1);
+  perform test.d_expect('lecciones visibles',           test.d_count('lessons'), 1);
+  perform test.d_expect('cuerpos de lección alcanzables',
     (select count(*) from lessons where body is not null), 1);
-  perform d_expect('la lección visible es la suya',
+  perform test.d_expect('la lección visible es la suya',
     (select count(*) from lessons where id = 'd3000000-0000-0000-0000-000000000001'), 1);
   -- Material de evaluación: cero por SQL.
-  perform d_expect('bancos de preguntas',          d_count('question_banks'), 0);
-  perform d_expect('enunciados de pregunta',       d_count('questions'), 0);
-  perform d_expect('alternativas',                 d_count('question_options'), 0);
-  perform d_expect('armado de exámenes',           d_count('exam_questions'), 0);
+  perform test.d_expect('bancos de preguntas',          test.d_count('question_banks'), 0);
+  perform test.d_expect('enunciados de pregunta',       test.d_count('questions'), 0);
+  perform test.d_expect('alternativas',                 test.d_count('question_options'), 0);
+  perform test.d_expect('armado de exámenes',           test.d_count('exam_questions'), 0);
   -- El examen que le toca dar sí, con sus reglas.
-  perform d_expect('exámenes visibles',            d_count('exams'), 1);
+  perform test.d_expect('exámenes visibles',            test.d_count('exams'), 1);
 end $$;
 rollback;
 
@@ -128,14 +128,14 @@ rollback;
 \echo '══ Alumno SIN matrícula, misma organización ════════════════════════════'
 begin;
 set local role authenticated;
-select d_as('dd000000-0000-0000-0000-000000000003');
+select test.d_as('dd000000-0000-0000-0000-000000000003');
 do $$
 begin
-  perform d_expect('cursos visibles (solo catálogo)', d_count('courses'), 1);
-  perform d_expect('módulos visibles',                d_count('modules'), 0);
-  perform d_expect('lecciones visibles',              d_count('lessons'), 0);
-  perform d_expect('exámenes visibles',               d_count('exams'), 0);
-  perform d_expect('bancos de preguntas',             d_count('question_banks'), 0);
+  perform test.d_expect('cursos visibles (solo catálogo)', test.d_count('courses'), 1);
+  perform test.d_expect('módulos visibles',                test.d_count('modules'), 0);
+  perform test.d_expect('lecciones visibles',              test.d_count('lessons'), 0);
+  perform test.d_expect('exámenes visibles',               test.d_count('exams'), 0);
+  perform test.d_expect('bancos de preguntas',             test.d_count('question_banks'), 0);
 end $$;
 rollback;
 
@@ -143,15 +143,15 @@ rollback;
 \echo '══ Staff de la organización: ve y edita todo lo suyo ═══════════════════'
 begin;
 set local role authenticated;
-select d_as('dd000000-0000-0000-0000-000000000001');
+select test.d_as('dd000000-0000-0000-0000-000000000001');
 do $$
 begin
-  perform d_expect('cursos visibles',        d_count('courses'), 4);
-  perform d_expect('módulos visibles',       d_count('modules'), 4);
-  perform d_expect('lecciones visibles',     d_count('lessons'), 4);
-  perform d_expect('bancos de preguntas',    d_count('question_banks'), 1);
-  perform d_expect('enunciados de pregunta', d_count('questions'), 1);
-  perform d_expect('armado de exámenes',     d_count('exam_questions'), 1);
+  perform test.d_expect('cursos visibles',        test.d_count('courses'), 4);
+  perform test.d_expect('módulos visibles',       test.d_count('modules'), 4);
+  perform test.d_expect('lecciones visibles',     test.d_count('lessons'), 4);
+  perform test.d_expect('bancos de preguntas',    test.d_count('question_banks'), 1);
+  perform test.d_expect('enunciados de pregunta', test.d_count('questions'), 1);
+  perform test.d_expect('armado de exámenes',     test.d_count('exam_questions'), 1);
 end $$;
 rollback;
 
@@ -165,7 +165,7 @@ begin
   insert into lessons (id, module_id, title)
     values ('d3000000-0000-0000-0000-0000000000aa', 'd2000000-0000-0000-0000-000000000001', 'Derivada');
   select course_id into c from lessons where id = 'd3000000-0000-0000-0000-0000000000aa';
-  perform d_expect('course_id derivado del módulo',
+  perform test.d_expect('course_id derivado del módulo',
     (select count(*) where c = 'd1000000-0000-0000-0000-000000000001'), 1);
 
   -- Y se corrige al mover la lección a un módulo de otro curso. Si no, la fila
@@ -173,7 +173,7 @@ begin
   update lessons set module_id = 'd2000000-0000-0000-0000-000000000003'
     where id = 'd3000000-0000-0000-0000-0000000000aa';
   select course_id into c from lessons where id = 'd3000000-0000-0000-0000-0000000000aa';
-  perform d_expect('course_id sincronizado al mover',
+  perform test.d_expect('course_id sincronizado al mover',
     (select count(*) where c = 'd1000000-0000-0000-0000-000000000003'), 1);
 end $$;
 rollback;

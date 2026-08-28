@@ -132,6 +132,25 @@ generan** (`npm run db:types`) y hay dos guardas: `npm run db:types:check` en CI
 para la deriva contra el esquema, y `tests/types/db-inference.ts`, que afirma en
 tiempo de compilación que las consultas resuelven a una forma concreta.
 
+## Reordenar contenido
+
+El orden lo aplica la base en **una sola sentencia** (`reorder_modules`,
+`reorder_lessons`): o queda el orden completo, o no cambia nada. Se manda la
+lista entera de ids, no un movimiento suelto — una lista parcial significa que el
+cliente y la base discrepan, y aplicarla dejaría índices repetidos.
+
+Son `security invoker`, así que RLS aplica. Y **comprueban cuántas filas
+tocaron**: con RLS un UPDATE sin permiso no falla, simplemente no toca nada, así
+que sin esa comprobación un alumno vería el nuevo orden en pantalla y la base
+guardaría el viejo. `tests/db/reorder.sql` lo verifica, y se comprobó que la
+prueba falla si se quita la comprobación.
+
+En la interfaz, **el teclado es el camino principal, no un añadido**: cada
+elemento tiene botones reales de subir y bajar que se deshabilitan en los
+extremos, y cada movimiento se anuncia por `aria-live` con nombre y posición. El
+arrastre usa la misma función pura (`src/lib/courses/reorder.ts`), así que los
+dos caminos no pueden divergir. En la v1 solo había arrastre.
+
 ## Comandos
 
 ```bash

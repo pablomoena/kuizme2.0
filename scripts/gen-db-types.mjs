@@ -29,6 +29,22 @@ const SCALARS = {
   json: 'Json', jsonb: 'Json',
 };
 
+/** Tipos de Postgres tal como los imprime pg_get_function_result / oidvectortypes. */
+function tsFnType(pgType, enumNames) {
+  const isArray = pgType.endsWith('[]');
+  const base = isArray ? pgType.slice(0, -2) : pgType;
+  const NAMES = {
+    uuid: 'string', text: 'string', citext: 'string', boolean: 'boolean', void: 'undefined',
+    integer: 'number', bigint: 'number', numeric: 'number', double: 'number',
+    jsonb: 'Json', json: 'Json',
+    'timestamp with time zone': 'string', 'timestamp without time zone': 'string', date: 'string',
+  };
+  const mapped = enumNames.has(base)
+    ? `Database['public']['Enums']['${base}']`
+    : (NAMES[base] ?? 'unknown');
+  return isArray ? `${mapped}[]` : mapped;
+}
+
 function tsType(col, enumNames) {
   const udt = col.udt.replace(/^_/, '');
   const isArray = col.udt.startsWith('_');
@@ -118,9 +134,36 @@ lines.push('    };');
 // CompositeTypes no la exige, pero se emite para igualar la forma que produce
 // `supabase gen types` y no sorprender a quien compare.
 lines.push('    Views: { [_ in never]: never };');
-// Las funciones del esquema son helpers de RLS (is_member_of, can_study_course):
-// las evalúan las políticas, no el cliente. No se exponen como RPC a propósito.
-lines.push('    Functions: { [_ in never]: never };');
+// Las funciones que `authenticated` puede ejecutar, para que rpc() tipe. Qué se
+// puede llamar de verdad lo decide el GRANT, no este tipo.
+if (schema.functions.length === 0) {
+  lines.push('    Functions: { [_ in never]: never };');
+} else {
+  lines.push('    Functions: {');
+  const vistas = new Set();
+  for (const f of schema.functions) {
+    // Una sobrecarga daría dos claves iguales. No tenemos ninguna; si aparece,
+    // se emite la primera y se avisa en vez de generar TypeScript inválido.
+    if (vistas.has(f.name)) {
+      console.warn(`  aviso: ${f.name} está sobrecargada; se emite solo la primera firma.`);
+      continue;
+    }
+    vistas.add(f.name);
+    lines.push(`      ${f.name}: {`);
+    if (f.args.length === 0) {
+      lines.push('        Args: Record<PropertyKey, never>;');
+    } else {
+      lines.push('        Args: {');
+      for (const a of f.args) {
+        lines.push(`          ${a.name}: ${tsFnType(a.type, enumNames)};`);
+      }
+      lines.push('        };');
+    }
+    lines.push(`        Returns: ${tsFnType(f.returns, enumNames)};`);
+    lines.push('      };');
+  }
+  lines.push('    };');
+}
 lines.push('    CompositeTypes: { [_ in never]: never };');
 lines.push('    Enums: {');
 for (const e of schema.enums) {
