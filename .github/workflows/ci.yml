@@ -73,3 +73,8 @@ jobs:
       # Y comprueba que las decisiones de diseño FUNCIONAN, no solo que compilan.
       - name: Verificar invariantes contra la base
         run: $PSQL -f tests/db/schema-behavior.sql
+
+      # El activo central: dos organizaciones, sesiones reales de usuario, y la
+      # afirmación de que el tenant A no alcanza nada del tenant B.
+      - name: Aislamiento entre tenants
+        run: $PSQL -f tests/db/tenant-isolation.sql
