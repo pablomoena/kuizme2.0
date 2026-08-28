@@ -33,9 +33,14 @@ export function PortalNav({
             Cursos
           </Link>
           {isStaff(role) ? (
-            <Link href="/panel/cursos" className="text-ink-muted hover:text-ink">
-              Editar cursos
-            </Link>
+            <>
+              <Link href="/panel/cursos" className="text-ink-muted hover:text-ink">
+                Editar cursos
+              </Link>
+              <Link href="/panel/solicitudes" className="text-ink-muted hover:text-ink">
+                Solicitudes
+              </Link>
+            </>
           ) : null}
         </nav>
 

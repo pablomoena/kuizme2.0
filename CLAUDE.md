@@ -79,6 +79,7 @@ concreto y documentado de la v1:
 | D8 | La ficha de la lección y su contenido, en tablas distintas | Sin temario visible no hay página de venta |
 | D9 | Completar exige matrícula; el progreso, una sola definición | Progreso fabricable y totales que bailaban |
 | D10 | Cómo se entrega el contenido se configura por curso | Un diplomado y un curso libre no se entregan igual |
+| D11 | Dos vías de matrícula: la institución, y el alumno | Solo el staff podía matricular: no se podía vender |
 
 ## La puerta
 
@@ -146,6 +147,26 @@ Se midió quitando cada clave y contando errores: `Relationships` 5, `Views` 4,
 generan** (`npm run db:types`) y hay dos guardas: `npm run db:types:check` en CI
 para la deriva contra el esquema, y `tests/types/db-inference.ts`, que afirma en
 tiempo de compilación que las consultas resuelven a una forma concreta.
+
+## Matrícula (D11)
+
+Dos vías que no se reemplazan: el alumno **se matricula solo** si el curso es
+gratuito y publicado (`can_self_enroll()`, la misma función que usa la política,
+así que el botón aparece si y solo si la base lo aceptaría), o **solicita** y la
+institución resuelve.
+
+**La ausencia de precio no es "gratis".** Un curso sin fila en `course_pricing` no
+admite auto-matrícula: que algo sea gratuito tiene que ser una decisión explícita
+de quien publica, no el resultado de un olvido.
+
+Tres cosas que la política impide y que son el motivo de que esto no sea "un
+insert y listo": que el alumno se ponga una **nota** (`final_grade`), que se marque
+el curso **completado**, y que entre gratis en uno de pago. Al darse de baja solo
+puede pasar a `cancelled`, y sin tocar nota ni fecha de término.
+
+Aprobar va por `approve_enrollment_request()`: marca la solicitud y crea la
+matrícula en **una sola sentencia**. Rechazar exige motivo, por CHECK, igual que
+D5 con las notas.
 
 ## Entrega del contenido (D10)
 

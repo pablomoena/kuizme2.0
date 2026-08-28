@@ -134,6 +134,74 @@ export type Database = {
           },
         ];
       };
+      enrollment_requests: {
+        Row: {
+          id: string;
+          organization_id: string;
+          course_id: string;
+          student_id: string;
+          status: Database['public']['Enums']['enrollment_request_status'];
+          message: string | null;
+          resolution_note: string | null;
+          resolved_by: string | null;
+          resolved_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string;
+          course_id: string;
+          student_id: string;
+          status?: Database['public']['Enums']['enrollment_request_status'];
+          message?: string | null;
+          resolution_note?: string | null;
+          resolved_by?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          course_id?: string;
+          student_id?: string;
+          status?: Database['public']['Enums']['enrollment_request_status'];
+          message?: string | null;
+          resolution_note?: string | null;
+          resolved_by?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'enrollment_requests_course_id_fkey';
+            columns: ['course_id'];
+            isOneToOne: false;
+            referencedRelation: 'courses';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'enrollment_requests_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'enrollment_requests_resolved_by_fkey';
+            columns: ['resolved_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'enrollment_requests_student_id_fkey';
+            columns: ['student_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       enrollments: {
         Row: {
           id: string;
@@ -1177,9 +1245,21 @@ export type Database = {
       };
     };
     Functions: {
+      approve_enrollment_request: {
+        Args: {
+          _request: string;
+        };
+        Returns: string;
+      };
       can_open_lesson: {
         Args: {
           _lesson: string;
+        };
+        Returns: boolean;
+      };
+      can_self_enroll: {
+        Args: {
+          _course: string;
         };
         Returns: boolean;
       };
@@ -1247,6 +1327,7 @@ export type Database = {
       course_release_mode: 'immediate' | 'scheduled' | 'relative';
       course_status: 'draft' | 'published' | 'archived';
       course_visibility: 'private' | 'unlisted' | 'public';
+      enrollment_request_status: 'pending' | 'approved' | 'rejected' | 'cancelled';
       enrollment_status: 'active' | 'completed' | 'suspended' | 'cancelled';
       exam_status: 'draft' | 'published' | 'archived';
       invitation_status: 'pending' | 'sent' | 'accepted' | 'expired' | 'revoked';

@@ -5,6 +5,7 @@ import { requirePortal } from '@/lib/auth/guard';
 import { getCourseForStudent } from '@/lib/courses/catalog';
 import { Temario } from '@/components/temario';
 import { Progreso } from '@/components/progreso';
+import { Matricularse } from '@/components/matricularse';
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -30,10 +31,6 @@ export default async function CursoAlumnoPage({ params }: Props) {
     (n, m) => n + m.lessons.filter((l) => l.readable).length,
     0,
   );
-  const muestras = course.modules.reduce(
-    (n, m) => n + m.lessons.filter((l) => l.is_preview).length,
-    0,
-  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -56,20 +53,13 @@ export default async function CursoAlumnoPage({ params }: Props) {
           {course.progress ? <Progreso progress={course.progress} /> : null}
         </div>
       ) : (
-        <div className="flex flex-col gap-2 rounded-md border border-line bg-surface-muted px-3 py-3 text-sm">
-          <p>
-            {muestras > 0
-              ? `No estás matriculado. Puedes leer ${
-                  muestras === 1 ? 'la lección de muestra' : `las ${muestras} lecciones de muestra`
-                } y revisar el temario completo antes de decidir.`
-              : 'No estás matriculado. Puedes revisar el temario completo antes de decidir.'}
-          </p>
-          {/* Sin botón de pago todavía: hoy la matrícula la hace la institución,
-              y un botón que no cobra sería una promesa falsa. */}
-          <p className="text-ink-muted">
-            Las matrículas las gestiona {session.organization.name}.
-          </p>
-        </div>
+        <Matricularse
+          courseId={course.id}
+          courseSlug={course.slug}
+          enroll={course.enroll}
+          precio={course.precio}
+          organizationName={session.organization.name}
+        />
       )}
 
       <section className="flex flex-col gap-4">
