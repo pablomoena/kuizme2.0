@@ -73,6 +73,8 @@ export type CourseDetail = {
       kind: Enum<'lesson_kind'>;
       order_index: number;
       is_required: boolean;
+      /** D8: su contenido se lee sin matrícula. La lección de muestra. */
+      is_preview: boolean;
     }[];
   }[];
 };
@@ -88,7 +90,7 @@ export async function getCourse(
     .select(
       `id, slug, title, subtitle, description, status, visibility,
        modules(id, title, description, order_index,
-               lessons(id, title, kind, order_index, is_required))`,
+               lessons(id, title, kind, order_index, is_required, is_preview))`,
     )
     .eq('organization_id', organizationId)
     .eq('slug', slug)

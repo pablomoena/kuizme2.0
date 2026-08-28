@@ -79,13 +79,39 @@ describe('invariantes del esquema', () => {
     expect(sql).not.toMatch(/\bprice_type\b/);
   });
 
-  it('D7: el contenido se lee por can_study_course, no por membresía', () => {
+  it('D8: el temario se lee a nivel catálogo y el contenido exige matrícula', () => {
+    // El temario (modules, lessons) sube a can_view_course para que se pueda
+    // mostrar antes de matricularse. El cuerpo vive aparte y sigue exigiendo
+    // matrícula: RLS filtra filas, no columnas, así que separarlos es la única
+    // forma de publicar el título y esconder el contenido.
     for (const table of ['modules', 'lessons']) {
-      const policy = new RegExp(
-        `create policy ${table}_read on ${table} for select to authenticated\\s+using \\(can_study_course\\(course_id\\)\\)`,
+      expect(sql).toMatch(
+        new RegExp(
+          `create policy ${table}_read on ${table} for select to authenticated\\s+using \\(can_view_course\\(course_id\\)\\)`,
+        ),
       );
-      expect(sql).toMatch(policy);
     }
+    expect(sql).toMatch(/create policy lesson_contents_read on lesson_contents/);
+    expect(sql).toMatch(/can_study_course\(course_id\)/);
+  });
+
+  it('D8: lessons no guarda el cuerpo de la lección', () => {
+    // Si el cuerpo volviera a lessons, publicar el temario publicaría el
+    // contenido: una política no puede esconder una columna.
+    for (const columna of ['body', 'video_id', 'external_url']) {
+      expect(sql).toMatch(new RegExp(`alter table lessons drop column ${columna}`));
+    }
+  });
+
+  it('D8: la excepción de muestra se ata a la lección de esa fila', () => {
+    // El error plausible es un exists sin ligar l.id = lesson_id: bastaría UNA
+    // lección de muestra en toda la base para abrir todos los contenidos.
+    const politica = sql.slice(
+      sql.indexOf('create policy lesson_contents_read'),
+      sql.indexOf('create policy lesson_contents_write'),
+    );
+    expect(politica).toMatch(/is_preview/);
+    expect(politica).toMatch(/l\.id = lesson_id/);
   });
 
   it('D7: el material de evaluación no tiene política de lectura para alumnos', () => {
